@@ -195,6 +195,49 @@ so anything you can do in one you can script in the other — the API is
 there for integrating into a trading desk's own tools
 (`GET /api/soccer/predict?...`, `GET /api/basketball/predict?...`).
 
+## Live fixtures (no manual team entry)
+
+The dashboard's default tab is now "Live Fixtures" — it auto-loads upcoming
+matches grouped by league (soccer divisions + NBA) and runs every one
+through the trained models automatically, no typing team names in one at a
+time. This is powered by `src/fixtures.py`:
+
+- Upcoming fixtures come from [TheSportsDB](https://www.thesportsdb.com)'s
+  free tier (shared "test" key, no signup) via `GET
+  /api/fixtures/live`, cached server-side for 30 minutes to stay well
+  within the free tier's rate limit.
+- Each of our 20 trained league codes (E0, SP1, I1, ...) is matched to
+  TheSportsDB's league ID by name, not hand-typed IDs alone — a small seed
+  map of IDs I'm fairly confident about is used as a fast path, but every
+  ID (seed or fuzzy-matched) is re-verified against the live league-name
+  list before being trusted, and two divisions can never resolve to the
+  same ID (there's a hard collision guard). That guard exists because of a
+  real bug caught during development: matching on the bare competition
+  name alone ("Serie A") ambiguously matched *both* Italy and Brazil,
+  since neither name is unique on its own — full country + competition
+  names are tried first now, short-suffix matching is the last resort.
+- Live team names ("Man United") are fuzzy-matched to whatever name our
+  trained model actually knows ("Man Utd" or similar) via `difflib`. An
+  unmatched team doesn't break anything — the prediction still runs, just
+  falling back to league-average strength for that side.
+- Resolved league IDs are cached to `data/league_id_map.json` so this
+  doesn't get re-resolved on every restart; delete that file (or call
+  `/api/fixtures/live?refresh=true`, which also forces a fixture re-fetch)
+  to force re-resolution.
+
+**Important caveat**: the sandbox this was built in has an aggressively
+allowlisted network — it couldn't reach TheSportsDB, ESPN, football-data.org,
+Odds API, or almost anything else external while building this. The
+fixtures/parsing/grouping/collision-guard logic was verified locally
+against mocked responses shaped exactly like TheSportsDB's real, stable,
+documented schema — but the actual live round trip has not been exercised
+against the real internet. **The first thing to check after deploying**
+(Railway has normal outbound internet access) is opening the dashboard and
+confirming fixtures actually populate. If a particular league comes back
+empty, it likely just means that league's off-season, but check
+`reports`/server logs for entries under `"errors"` in the `/api/fixtures/live`
+response first.
+
 ## Plugging in live/real odds
 
 This build used publicly available historical odds for soccer backtesting

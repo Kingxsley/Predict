@@ -12,14 +12,14 @@
   * { box-sizing: border-box; }
   body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
          background: var(--bg); color: var(--text); }
-  header { padding: 20px 28px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+  header { padding: 18px 28px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 10px;}
   header h1 { font-size: 17px; font-weight: 600; margin:0; }
   header .tag { color: var(--muted); font-size: 12px; }
-  .tabs { display:flex; gap:4px; padding: 14px 28px 0; }
+  .tabs { display:flex; gap:4px; padding: 14px 28px 0; border-bottom: 1px solid var(--border); }
   .tab { padding:9px 16px; border-radius:8px 8px 0 0; cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; }
   .tab.active { background: var(--panel); color: var(--text); }
-  main { max-width: 1000px; margin: 0 auto; padding: 0 28px 60px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 22px; margin-top: 0; }
+  main { max-width: 1100px; margin: 0 auto; padding: 22px 28px 60px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 22px; }
   .row { display:flex; gap:14px; flex-wrap: wrap; margin-bottom: 14px; }
   .field { flex: 1; min-width: 160px; }
   label { display:block; font-size: 11px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
@@ -29,6 +29,7 @@
   button { background: var(--accent); color: white; border: none; padding: 11px 22px; border-radius: 7px;
            font-size: 14px; font-weight: 600; cursor: pointer; }
   button:hover { opacity: .9; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 8px 14px; font-size: 13px; }
   .section-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 22px 0 10px; }
   .results { display:none; margin-top: 22px; }
   .prob-grid { display:flex; gap:12px; margin-bottom: 18px; }
@@ -47,103 +48,277 @@
   .badge { display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight:700; }
   .badge.bet { background: rgba(46,204,113,.15); color: var(--pos); }
   .badge.pass { background: rgba(139,147,167,.15); color: var(--muted); }
-  .err { color: var(--neg); font-size: 13px; margin-top: 10px; display:none; }
+  .err { color: var(--neg); font-size: 13px; margin-top: 10px; }
   .disclaimer { color: var(--muted); font-size: 11.5px; margin-top: 28px; line-height:1.5; border-top:1px solid var(--border); padding-top:14px;}
-  datalist {}
+
+  /* live fixtures view */
+  .live-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;}
+  .live-toolbar .updated { color: var(--muted); font-size: 12px; }
+  .league-group { margin-bottom: 26px; }
+  .league-group h2 { font-size: 14px; font-weight: 700; margin: 0 0 10px; display:flex; align-items:center; gap: 8px; }
+  .league-group h2 .count { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .fixture-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+                  padding: 14px 18px; margin-bottom: 10px; }
+  .fixture-top { display:flex; justify-content:space-between; align-items:center; gap: 12px; flex-wrap: wrap; }
+  .fixture-teams { font-size: 14.5px; font-weight: 600; }
+  .fixture-when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .prob-bar { display:flex; height: 8px; border-radius: 5px; overflow:hidden; margin-top: 10px; background: var(--panel2); }
+  .prob-bar .seg-home { background: var(--accent); }
+  .prob-bar .seg-draw { background: var(--draw); }
+  .prob-bar .seg-away { background: #6b7280; }
+  .prob-legend { display:flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .fixture-meta { display:flex; gap: 18px; margin-top: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .fixture-meta b { color: var(--text); }
+  .loading { color: var(--muted); font-size: 13px; padding: 30px 0; text-align:center; }
+  .empty-note { color: var(--muted); font-size: 13px; padding: 10px 0; }
+  .error-banner { background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.3); color: #ff9a9a;
+                  border-radius: 8px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 18px; }
 </style>
 </head>
 <body>
 <header>
   <h1>⚡ Sports Prediction Engine</h1>
-  <div class="tag">local · Dixon-Coles + Elo (soccer) · Elo + GBM (NBA)</div>
+  <div class="tag">live fixtures · Dixon-Coles + Elo (soccer) · Elo + GBM (NBA)</div>
 </header>
 <div class="tabs">
-  <div class="tab active" id="tab-soccer" onclick="switchTab('soccer')">Soccer</div>
-  <div class="tab" id="tab-nba" onclick="switchTab('nba')">NBA</div>
+  <div class="tab active" id="tab-live" onclick="switchMainTab('live')">Live Fixtures</div>
+  <div class="tab" id="tab-custom" onclick="switchMainTab('custom')">Custom Matchup</div>
 </div>
 <main>
-  <div class="card" id="panel-soccer">
-    <div class="row">
-      <div class="field">
-        <label>League</label>
-        <select id="s-league" onchange="loadTeams()"></select>
-      </div>
-      <div class="field">
-        <label>Home Team</label>
-        <input list="s-home-list" id="s-home" placeholder="e.g. Arsenal">
-        <datalist id="s-home-list"></datalist>
-      </div>
-      <div class="field">
-        <label>Away Team</label>
-        <input list="s-away-list" id="s-away" placeholder="e.g. Chelsea">
-        <datalist id="s-away-list"></datalist>
-      </div>
+
+  <!-- ============ LIVE FIXTURES ============ -->
+  <div id="panel-live">
+    <div class="live-toolbar">
+      <div class="updated" id="live-updated">Loading upcoming fixtures…</div>
+      <button class="ghost" onclick="loadLive(true)">↻ Refresh</button>
     </div>
-    <div class="section-title">Market odds (decimal) — optional, enables edge/Kelly analysis</div>
-    <div class="row">
-      <div class="field"><label>Odds Home</label><input id="s-oh" type="number" step="0.01" placeholder="1.90"></div>
-      <div class="field"><label>Odds Draw</label><input id="s-od" type="number" step="0.01" placeholder="3.60"></div>
-      <div class="field"><label>Odds Away</label><input id="s-oa" type="number" step="0.01" placeholder="4.20"></div>
-    </div>
-    <button onclick="runSoccer()">Predict</button>
-    <div class="err" id="s-err"></div>
-    <div class="results" id="s-results"></div>
+    <div id="live-errors"></div>
+    <div id="live-content"><div class="loading">Fetching live fixtures…</div></div>
   </div>
 
-  <div class="card" id="panel-nba" style="display:none;">
-    <div class="row">
-      <div class="field">
-        <label>Home Team</label>
-        <input list="n-home-list" id="n-home" placeholder="e.g. Celtics">
-        <datalist id="n-home-list"></datalist>
-      </div>
-      <div class="field">
-        <label>Away Team</label>
-        <input list="n-away-list" id="n-away" placeholder="e.g. Lakers">
-        <datalist id="n-away-list"></datalist>
-      </div>
-      <div class="field">
-        <label>Game Date</label>
-        <input id="n-date" type="date">
-      </div>
+  <!-- ============ CUSTOM MATCHUP ============ -->
+  <div id="panel-custom" style="display:none;">
+    <div class="tabs" style="padding:0; border-bottom:none; margin-bottom:14px;">
+      <div class="tab active" id="tab-soccer" onclick="switchSubTab('soccer')" style="background:var(--panel2);">Soccer</div>
+      <div class="tab" id="tab-nba" onclick="switchSubTab('nba')" style="background:transparent;">NBA</div>
     </div>
-    <div class="section-title">Market odds (decimal) — optional</div>
-    <div class="row">
-      <div class="field"><label>Odds Home</label><input id="n-oh" type="number" step="0.01" placeholder="1.55"></div>
-      <div class="field"><label>Odds Away</label><input id="n-oa" type="number" step="0.01" placeholder="2.50"></div>
-      <div class="field" style="display:flex; align-items:flex-end; gap:14px;">
-        <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
-          <input type="checkbox" id="n-playoffs" style="width:auto;"> Playoffs
-        </label>
-        <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
-          <input type="checkbox" id="n-neutral" style="width:auto;"> Neutral site
-        </label>
+
+    <div class="card" id="panel-soccer">
+      <div class="row">
+        <div class="field">
+          <label>League</label>
+          <select id="s-league" onchange="loadTeams()"></select>
+        </div>
+        <div class="field">
+          <label>Home Team</label>
+          <input list="s-home-list" id="s-home" placeholder="e.g. Arsenal">
+          <datalist id="s-home-list"></datalist>
+        </div>
+        <div class="field">
+          <label>Away Team</label>
+          <input list="s-away-list" id="s-away" placeholder="e.g. Chelsea">
+          <datalist id="s-away-list"></datalist>
+        </div>
       </div>
+      <div class="section-title">Market odds (decimal) — optional, enables edge/Kelly analysis</div>
+      <div class="row">
+        <div class="field"><label>Odds Home</label><input id="s-oh" type="number" step="0.01" placeholder="1.90"></div>
+        <div class="field"><label>Odds Draw</label><input id="s-od" type="number" step="0.01" placeholder="3.60"></div>
+        <div class="field"><label>Odds Away</label><input id="s-oa" type="number" step="0.01" placeholder="4.20"></div>
+      </div>
+      <button onclick="runSoccer()">Predict</button>
+      <div class="err" id="s-err" style="display:none;"></div>
+      <div class="results" id="s-results"></div>
     </div>
-    <button onclick="runNBA()">Predict</button>
-    <div class="err" id="n-err"></div>
-    <div class="results" id="n-results"></div>
+
+    <div class="card" id="panel-nba" style="display:none;">
+      <div class="row">
+        <div class="field">
+          <label>Home Team</label>
+          <input list="n-home-list" id="n-home" placeholder="e.g. Celtics">
+          <datalist id="n-home-list"></datalist>
+        </div>
+        <div class="field">
+          <label>Away Team</label>
+          <input list="n-away-list" id="n-away" placeholder="e.g. Lakers">
+          <datalist id="n-away-list"></datalist>
+        </div>
+        <div class="field">
+          <label>Game Date</label>
+          <input id="n-date" type="date">
+        </div>
+      </div>
+      <div class="section-title">Market odds (decimal) — optional</div>
+      <div class="row">
+        <div class="field"><label>Odds Home</label><input id="n-oh" type="number" step="0.01" placeholder="1.55"></div>
+        <div class="field"><label>Odds Away</label><input id="n-oa" type="number" step="0.01" placeholder="2.50"></div>
+        <div class="field" style="display:flex; align-items:flex-end; gap:14px;">
+          <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
+            <input type="checkbox" id="n-playoffs" style="width:auto;"> Playoffs
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
+            <input type="checkbox" id="n-neutral" style="width:auto;"> Neutral site
+          </label>
+        </div>
+      </div>
+      <button onclick="runNBA()">Predict</button>
+      <div class="err" id="n-err" style="display:none;"></div>
+      <div class="results" id="n-results"></div>
+    </div>
   </div>
 
   <div class="disclaimer">
     Model outputs are statistical estimates from historical data, not guarantees. Every league/market
     shown here was backtested against real closing odds where available (see reports/soccer_backtest.json
     and reports/basketball_backtest.json) — beating the market consistently is hard, and this tool is a
-    decision-support / cross-check input, not an autonomous betting system. Use edge and Kelly figures as
-    one input among your own trading process, staking limits, and risk controls.
+    decision-support / cross-check input, not an autonomous betting system. Live fixtures are pulled from
+    a free third-party schedule feed and matched to our trained team names automatically; if a team name
+    doesn't match cleanly the prediction still runs using a league-average fallback strength for that side.
+    Use edge and Kelly figures as one input among your own trading process, staking limits, and risk controls.
   </div>
 </main>
 
 <script>
 const API = "";
 
-function switchTab(t) {
+function switchMainTab(t) {
+  document.getElementById('tab-live').classList.toggle('active', t==='live');
+  document.getElementById('tab-custom').classList.toggle('active', t==='custom');
+  document.getElementById('panel-live').style.display = t==='live' ? 'block' : 'none';
+  document.getElementById('panel-custom').style.display = t==='custom' ? 'block' : 'none';
+}
+function switchSubTab(t) {
   document.getElementById('tab-soccer').classList.toggle('active', t==='soccer');
   document.getElementById('tab-nba').classList.toggle('active', t==='nba');
+  document.getElementById('tab-soccer').style.background = t==='soccer' ? 'var(--panel2)' : 'transparent';
+  document.getElementById('tab-nba').style.background = t==='nba' ? 'var(--panel2)' : 'transparent';
   document.getElementById('panel-soccer').style.display = t==='soccer' ? 'block' : 'none';
   document.getElementById('panel-nba').style.display = t==='nba' ? 'block' : 'none';
 }
 
+function pct(x) { return (x*100).toFixed(1) + '%'; }
+function fmtWhen(dateStr, timeStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T' + (timeStr || '00:00:00') + 'Z');
+    return d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}) +
+           (timeStr ? ' · ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '');
+  } catch(e) { return dateStr; }
+}
+
+// ---------------- LIVE FIXTURES ----------------
+async function loadLive(forceRefresh) {
+  document.getElementById('live-updated').textContent = 'Fetching live fixtures…';
+  document.getElementById('live-content').innerHTML = '<div class="loading">Fetching live fixtures…</div>';
+  document.getElementById('live-errors').innerHTML = '';
+  try {
+    const resp = await fetch(API + '/api/fixtures/live' + (forceRefresh ? '?refresh=true' : ''));
+    if (!resp.ok) throw new Error((await resp.json()).detail || 'Failed to load fixtures');
+    const data = await resp.json();
+    renderLive(data);
+    document.getElementById('live-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('live-content').innerHTML =
+      `<div class="error-banner">Couldn't load live fixtures: ${e.message}. The dashboard's manual "Custom Matchup" tab still works off the local models.</div>`;
+    document.getElementById('live-updated').textContent = '';
+  }
+}
+
+function soccerFixtureCard(f) {
+  const p = f.prediction || {};
+  if (p.error) {
+    return `<div class="fixture-card">
+      <div class="fixture-top"><div class="fixture-teams">${f.home_team_live_name} vs ${f.away_team_live_name}</div>
+      <div class="fixture-when">${fmtWhen(f.date, f.time)}</div></div>
+      <div class="err" style="margin-top:8px;">Prediction unavailable: ${p.error}</div></div>`;
+  }
+  const h = p.prob_home_win*100, d = p.prob_draw*100, a = p.prob_away_win*100;
+  return `<div class="fixture-card">
+    <div class="fixture-top">
+      <div class="fixture-teams">${f.home_team_live_name} vs ${f.away_team_live_name}</div>
+      <div class="fixture-when">${fmtWhen(f.date, f.time)}</div>
+    </div>
+    <div class="prob-bar">
+      <div class="seg-home" style="width:${h}%"></div>
+      <div class="seg-draw" style="width:${d}%"></div>
+      <div class="seg-away" style="width:${a}%"></div>
+    </div>
+    <div class="prob-legend">
+      <span>${f.home_team_live_name} ${pct(p.prob_home_win)}</span>
+      <span>Draw ${pct(p.prob_draw)}</span>
+      <span>${f.away_team_live_name} ${pct(p.prob_away_win)}</span>
+    </div>
+    <div class="fixture-meta">
+      <span>xG <b>${p.expected_goals_home.toFixed(2)} – ${p.expected_goals_away.toFixed(2)}</b></span>
+      <span>O/U 2.5 <b>${pct(p.prob_over_2_5)} / ${pct(p.prob_under_2_5)}</b></span>
+      <span>BTTS <b>${pct(p.prob_btts_yes)}</b></span>
+    </div>
+  </div>`;
+}
+
+function nbaFixtureCard(f) {
+  const p = f.prediction || {};
+  if (p.error) {
+    return `<div class="fixture-card">
+      <div class="fixture-top"><div class="fixture-teams">${f.home_team_live_name} vs ${f.away_team_live_name}</div>
+      <div class="fixture-when">${fmtWhen(f.date, f.time)}</div></div>
+      <div class="err" style="margin-top:8px;">Prediction unavailable: ${p.error}</div></div>`;
+  }
+  const h = p.prob_home_win*100, a = p.prob_away_win*100;
+  return `<div class="fixture-card">
+    <div class="fixture-top">
+      <div class="fixture-teams">${f.home_team_live_name} vs ${f.away_team_live_name}</div>
+      <div class="fixture-when">${fmtWhen(f.date, f.time)}</div>
+    </div>
+    <div class="prob-bar">
+      <div class="seg-home" style="width:${h}%"></div>
+      <div class="seg-away" style="width:${a}%"></div>
+    </div>
+    <div class="prob-legend">
+      <span>${f.home_team_live_name} ${pct(p.prob_home_win)}</span>
+      <span>${f.away_team_live_name} ${pct(p.prob_away_win)}</span>
+    </div>
+    <div class="fixture-meta">
+      <span>Predicted margin <b>${p.predicted_margin_home>0?'+':''}${p.predicted_margin_home.toFixed(1)}</b></span>
+      <span>Predicted total <b>${p.predicted_total_points.toFixed(1)}</b></span>
+    </div>
+  </div>`;
+}
+
+function renderLive(data) {
+  let html = '';
+  const soccerDivs = Object.keys(data.soccer || {});
+  let anyFixtures = false;
+
+  for (const div of soccerDivs) {
+    const group = data.soccer[div];
+    if (!group.fixtures || group.fixtures.length === 0) continue;
+    anyFixtures = true;
+    html += `<div class="league-group"><h2>⚽ ${group.league} <span class="count">${group.fixtures.length} upcoming</span></h2>`;
+    html += group.fixtures.map(soccerFixtureCard).join('');
+    html += `</div>`;
+  }
+
+  if (data.basketball && data.basketball.fixtures && data.basketball.fixtures.length > 0) {
+    anyFixtures = true;
+    html += `<div class="league-group"><h2>🏀 NBA <span class="count">${data.basketball.fixtures.length} upcoming</span></h2>`;
+    html += data.basketball.fixtures.map(nbaFixtureCard).join('');
+    html += `</div>`;
+  }
+
+  if (!anyFixtures) {
+    html = `<div class="empty-note">No upcoming fixtures were returned by the live feed right now — this can mean the leagues are in their off-season, or the upstream feed is temporarily unavailable. Try Refresh, or use the Custom Matchup tab.</div>`;
+  }
+
+  document.getElementById('live-content').innerHTML = html;
+
+  if (data.errors && data.errors.length > 0) {
+    document.getElementById('live-errors').innerHTML =
+      `<div class="error-banner"><b>${data.errors.length} league(s) had fetch issues:</b><br>${data.errors.join('<br>')}</div>`;
+  }
+}
+
+// ---------------- CUSTOM MATCHUP (soccer) ----------------
 async function init() {
   const leagues = await (await fetch(API+'/api/soccer/leagues')).json();
   const sel = document.getElementById('s-league');
@@ -153,6 +328,7 @@ async function init() {
   fillList('n-home-list', nbaTeams);
   fillList('n-away-list', nbaTeams);
   document.getElementById('n-date').value = new Date().toISOString().slice(0,10);
+  loadLive(false);
 }
 
 function fillList(id, items) {
@@ -165,8 +341,6 @@ async function loadTeams() {
   fillList('s-home-list', teams);
   fillList('s-away-list', teams);
 }
-
-function pct(x) { return (x*100).toFixed(1) + '%'; }
 
 function edgeRow(label, odds, ea) {
   if (!ea) return '';
