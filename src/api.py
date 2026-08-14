@@ -25,6 +25,7 @@ from typing import Optional
 
 import config
 import predictor as pred
+import fixtures as live_fixtures
 
 app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 
@@ -80,6 +81,19 @@ def basketball_predict(
 def dashboard():
     html_path = Path(__file__).resolve().parent.parent / "dashboard.html"
     return HTMLResponse(html_path.read_text())
+
+
+@app.get("/api/fixtures/live")
+def fixtures_live(refresh: bool = False):
+    """Upcoming fixtures grouped by league, each with a prediction already
+    attached — this is what powers the dashboard's default view so nobody
+    has to type team names in by hand. Cached ~30 min server-side; pass
+    ?refresh=true to force a re-fetch (use sparingly, the upstream free
+    tier is rate-limited)."""
+    try:
+        return live_fixtures.get_live_fixtures(force_refresh=refresh)
+    except Exception as e:
+        raise HTTPException(502, f"Live fixtures fetch failed: {type(e).__name__}: {e}")
 
 
 @app.get("/healthz")
