@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 import predictor as pred
 import football_data as fd
+import tracking
 
 THESPORTSDB_KEY = "3"  # shared free "test" key; swap for a paid key via env var for higher limits
 BASE = f"https://www.thesportsdb.com/api/v1/json/{THESPORTSDB_KEY}"
@@ -237,6 +238,10 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
                 result["errors"].append(f"{div}: unexpected error ({type(e).__name__}: {e})")
                 continue
 
+        for ev in events:
+            ev.setdefault("provider", "thesportsdb")
+            ev.setdefault("providerId", ev.get("idEvent"))
+
         try:
             known_teams = pred.list_soccer_teams(div)
             fixtures = []
@@ -250,6 +255,10 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
                     prediction = pred.predict_soccer(div, home, away)
                 except Exception as e:
                     prediction = {"error": f"{type(e).__name__}: {e}"}
+                try:
+                    tracking.record_soccer(div, league_name, ev, home_raw, away_raw, prediction)
+                except Exception:
+                    pass  # tracking is best-effort, never block the live-fixtures response
                 fixtures.append({
                     "date": ev.get("dateEvent"),
                     "time": ev.get("strTime"),
@@ -269,6 +278,9 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
     if nba_id:
         try:
             events = fetch_upcoming_events(nba_id)
+            for ev in events:
+                ev.setdefault("provider", "thesportsdb")
+                ev.setdefault("providerId", ev.get("idEvent"))
             known_teams = pred.list_basketball_teams()
             fixtures = []
             for ev in events:
@@ -281,6 +293,10 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
                     prediction = pred.predict_basketball(home, away, ev.get("dateEvent"))
                 except Exception as e:
                     prediction = {"error": f"{type(e).__name__}: {e}"}
+                try:
+                    tracking.record_basketball(ev, home_raw, away_raw, prediction)
+                except Exception:
+                    pass
                 fixtures.append({
                     "date": ev.get("dateEvent"),
                     "time": ev.get("strTime"),

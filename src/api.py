@@ -27,6 +27,7 @@ from typing import Optional
 import config
 import predictor as pred
 import fixtures as live_fixtures
+import tracking
 
 app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 
@@ -113,6 +114,18 @@ def analytics():
     except FileNotFoundError:
         basketball = None
     return {"soccer": soccer, "basketball": basketball}
+
+
+@app.get("/api/tracking/log")
+def tracking_log():
+    """Every prediction logged from a live fixture, graded against the
+    real final score (fetched from the same provider that supplied the
+    fixture) once available. Nothing here is simulated - a fixture stays
+    "pending" until its actual result can be fetched."""
+    try:
+        return tracking.get_log()
+    except Exception as e:
+        raise HTTPException(500, f"{type(e).__name__}: {e}")
 
 
 @app.get("/healthz")

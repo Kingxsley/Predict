@@ -82,5 +82,23 @@ def fetch_upcoming_events(div: str) -> list[dict]:
             "strTime": time_part.rstrip("Z") if time_part else None,
             "strHomeTeam": (m.get("homeTeam") or {}).get("name"),
             "strAwayTeam": (m.get("awayTeam") or {}).get("name"),
+            "provider": "football-data.org",
+            "providerId": str(m.get("id")) if m.get("id") is not None else None,
         })
     return events
+
+
+def fetch_result(match_id: str) -> dict | None:
+    """Looks up one match by football-data.org's own id and returns the
+    final score if it's finished, else None. Used to grade a previously
+    logged prediction once its match has actually been played."""
+    if not FOOTBALL_DATA_KEY:
+        return None
+    data = _get_json(f"{BASE}/matches/{match_id}")
+    if data.get("status") != "FINISHED":
+        return None
+    score = (data.get("score") or {}).get("fullTime") or {}
+    home, away = score.get("home"), score.get("away")
+    if home is None or away is None:
+        return None
+    return {"home_score": home, "away_score": away}
