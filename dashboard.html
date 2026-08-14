@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sports Prediction Engine — Local Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131722; --panel2: #1a1f2e; --border: #2a3040;
+    --text: #e6e9ef; --muted: #8b93a7; --accent: #4f8cff;
+    --pos: #2ecc71; --neg: #ff5c5c; --draw: #f5b642;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+  header h1 { font-size: 17px; font-weight: 600; margin:0; }
+  header .tag { color: var(--muted); font-size: 12px; }
+  .tabs { display:flex; gap:4px; padding: 14px 28px 0; }
+  .tab { padding:9px 16px; border-radius:8px 8px 0 0; cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; }
+  .tab.active { background: var(--panel); color: var(--text); }
+  main { max-width: 1000px; margin: 0 auto; padding: 0 28px 60px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 22px; margin-top: 0; }
+  .row { display:flex; gap:14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .field { flex: 1; min-width: 160px; }
+  label { display:block; font-size: 11px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+  input, select { width:100%; padding: 9px 10px; background: var(--panel2); border: 1px solid var(--border);
+                  border-radius: 7px; color: var(--text); font-size: 14px; }
+  input::placeholder { color: #55607a; }
+  button { background: var(--accent); color: white; border: none; padding: 11px 22px; border-radius: 7px;
+           font-size: 14px; font-weight: 600; cursor: pointer; }
+  button:hover { opacity: .9; }
+  .section-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 22px 0 10px; }
+  .results { display:none; margin-top: 22px; }
+  .prob-grid { display:flex; gap:12px; margin-bottom: 18px; }
+  .prob-box { flex:1; background: var(--panel2); border-radius: 8px; padding: 16px; text-align:center; border:1px solid var(--border); }
+  .prob-box .label { font-size: 11px; color: var(--muted); text-transform:uppercase; margin-bottom:6px; }
+  .prob-box .val { font-size: 26px; font-weight: 700; }
+  .stat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--panel2); border-radius: 8px; padding: 12px 14px; border:1px solid var(--border); }
+  .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .stat .val { font-size: 17px; font-weight: 600; margin-top: 3px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th, td { text-align: left; padding: 9px 10px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  .edge-pos { color: var(--pos); font-weight: 700; }
+  .edge-neg { color: var(--neg); }
+  .badge { display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight:700; }
+  .badge.bet { background: rgba(46,204,113,.15); color: var(--pos); }
+  .badge.pass { background: rgba(139,147,167,.15); color: var(--muted); }
+  .err { color: var(--neg); font-size: 13px; margin-top: 10px; display:none; }
+  .disclaimer { color: var(--muted); font-size: 11.5px; margin-top: 28px; line-height:1.5; border-top:1px solid var(--border); padding-top:14px;}
+  datalist {}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Sports Prediction Engine</h1>
+  <div class="tag">local · Dixon-Coles + Elo (soccer) · Elo + GBM (NBA)</div>
+</header>
+<div class="tabs">
+  <div class="tab active" id="tab-soccer" onclick="switchTab('soccer')">Soccer</div>
+  <div class="tab" id="tab-nba" onclick="switchTab('nba')">NBA</div>
+</div>
+<main>
+  <div class="card" id="panel-soccer">
+    <div class="row">
+      <div class="field">
+        <label>League</label>
+        <select id="s-league" onchange="loadTeams()"></select>
+      </div>
+      <div class="field">
+        <label>Home Team</label>
+        <input list="s-home-list" id="s-home" placeholder="e.g. Arsenal">
+        <datalist id="s-home-list"></datalist>
+      </div>
+      <div class="field">
+        <label>Away Team</label>
+        <input list="s-away-list" id="s-away" placeholder="e.g. Chelsea">
+        <datalist id="s-away-list"></datalist>
+      </div>
+    </div>
+    <div class="section-title">Market odds (decimal) — optional, enables edge/Kelly analysis</div>
+    <div class="row">
+      <div class="field"><label>Odds Home</label><input id="s-oh" type="number" step="0.01" placeholder="1.90"></div>
+      <div class="field"><label>Odds Draw</label><input id="s-od" type="number" step="0.01" placeholder="3.60"></div>
+      <div class="field"><label>Odds Away</label><input id="s-oa" type="number" step="0.01" placeholder="4.20"></div>
+    </div>
+    <button onclick="runSoccer()">Predict</button>
+    <div class="err" id="s-err"></div>
+    <div class="results" id="s-results"></div>
+  </div>
+
+  <div class="card" id="panel-nba" style="display:none;">
+    <div class="row">
+      <div class="field">
+        <label>Home Team</label>
+        <input list="n-home-list" id="n-home" placeholder="e.g. Celtics">
+        <datalist id="n-home-list"></datalist>
+      </div>
+      <div class="field">
+        <label>Away Team</label>
+        <input list="n-away-list" id="n-away" placeholder="e.g. Lakers">
+        <datalist id="n-away-list"></datalist>
+      </div>
+      <div class="field">
+        <label>Game Date</label>
+        <input id="n-date" type="date">
+      </div>
+    </div>
+    <div class="section-title">Market odds (decimal) — optional</div>
+    <div class="row">
+      <div class="field"><label>Odds Home</label><input id="n-oh" type="number" step="0.01" placeholder="1.55"></div>
+      <div class="field"><label>Odds Away</label><input id="n-oa" type="number" step="0.01" placeholder="2.50"></div>
+      <div class="field" style="display:flex; align-items:flex-end; gap:14px;">
+        <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
+          <input type="checkbox" id="n-playoffs" style="width:auto;"> Playoffs
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; margin:0; text-transform:none; font-size:13px;">
+          <input type="checkbox" id="n-neutral" style="width:auto;"> Neutral site
+        </label>
+      </div>
+    </div>
+    <button onclick="runNBA()">Predict</button>
+    <div class="err" id="n-err"></div>
+    <div class="results" id="n-results"></div>
+  </div>
+
+  <div class="disclaimer">
+    Model outputs are statistical estimates from historical data, not guarantees. Every league/market
+    shown here was backtested against real closing odds where available (see reports/soccer_backtest.json
+    and reports/basketball_backtest.json) — beating the market consistently is hard, and this tool is a
+    decision-support / cross-check input, not an autonomous betting system. Use edge and Kelly figures as
+    one input among your own trading process, staking limits, and risk controls.
+  </div>
+</main>
+
+<script>
+const API = "";
+
+function switchTab(t) {
+  document.getElementById('tab-soccer').classList.toggle('active', t==='soccer');
+  document.getElementById('tab-nba').classList.toggle('active', t==='nba');
+  document.getElementById('panel-soccer').style.display = t==='soccer' ? 'block' : 'none';
+  document.getElementById('panel-nba').style.display = t==='nba' ? 'block' : 'none';
+}
+
+async function init() {
+  const leagues = await (await fetch(API+'/api/soccer/leagues')).json();
+  const sel = document.getElementById('s-league');
+  sel.innerHTML = leagues.map(l => `<option value="${l.code}">${l.name} (${l.code})</option>`).join('');
+  await loadTeams();
+  const nbaTeams = await (await fetch(API+'/api/basketball/teams')).json();
+  fillList('n-home-list', nbaTeams);
+  fillList('n-away-list', nbaTeams);
+  document.getElementById('n-date').value = new Date().toISOString().slice(0,10);
+}
+
+function fillList(id, items) {
+  document.getElementById(id).innerHTML = items.map(t => `<option value="${t}">`).join('');
+}
+
+async function loadTeams() {
+  const div = document.getElementById('s-league').value;
+  const teams = await (await fetch(API+`/api/soccer/teams?div=${div}`)).json();
+  fillList('s-home-list', teams);
+  fillList('s-away-list', teams);
+}
+
+function pct(x) { return (x*100).toFixed(1) + '%'; }
+
+function edgeRow(label, odds, ea) {
+  if (!ea) return '';
+  const edgeClass = ea.edge > 0.02 ? 'edge-pos' : 'edge-neg';
+  const badge = ea.edge > 0.02 ? '<span class="badge bet">VALUE</span>' : '<span class="badge pass">PASS</span>';
+  return `<tr>
+    <td>${label}</td>
+    <td>${odds}</td>
+    <td>${pct(ea.market_implied_prob)}</td>
+    <td class="${edgeClass}">${ea.edge>0?'+':''}${pct(ea.edge)}</td>
+    <td>${(ea.kelly_stake_fraction*100).toFixed(2)}% of bankroll</td>
+    <td>${badge}</td>
+  </tr>`;
+}
+
+async function runSoccer() {
+  document.getElementById('s-err').style.display = 'none';
+  const div = document.getElementById('s-league').value;
+  const home = document.getElementById('s-home').value.trim();
+  const away = document.getElementById('s-away').value.trim();
+  if (!home || !away) { showErr('s-err', 'Enter both team names.'); return; }
+  const oh = document.getElementById('s-oh').value;
+  const od = document.getElementById('s-od').value;
+  const oa = document.getElementById('s-oa').value;
+  let url = `${API}/api/soccer/predict?div=${div}&home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`;
+  if (oh) url += `&odds_home=${oh}`; if (od) url += `&odds_draw=${od}`; if (oa) url += `&odds_away=${oa}`;
+  const resp = await fetch(url);
+  if (!resp.ok) { showErr('s-err', (await resp.json()).detail || 'Prediction failed'); return; }
+  const r = await resp.json();
+
+  let html = `<div class="prob-grid">
+    <div class="prob-box"><div class="label">${r.home_team} Win</div><div class="val">${pct(r.prob_home_win)}</div></div>
+    <div class="prob-box"><div class="label">Draw</div><div class="val">${pct(r.prob_draw)}</div></div>
+    <div class="prob-box"><div class="label">${r.away_team} Win</div><div class="val">${pct(r.prob_away_win)}</div></div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">Expected Goals</div><div class="val">${r.expected_goals_home.toFixed(2)} – ${r.expected_goals_away.toFixed(2)}</div></div>
+    <div class="stat"><div class="label">Over/Under 2.5</div><div class="val">${pct(r.prob_over_2_5)} / ${pct(r.prob_under_2_5)}</div></div>
+    <div class="stat"><div class="label">BTTS Yes/No</div><div class="val">${pct(r.prob_btts_yes)} / ${pct(r.prob_btts_no)}</div></div>
+    <div class="stat"><div class="label">Elo Rating</div><div class="val">${Math.round(r.elo_home)} – ${Math.round(r.elo_away)}</div></div>
+  </div>`;
+
+  if (r.market_analysis) {
+    html += `<div class="section-title">Market edge analysis</div>
+    <table><thead><tr><th>Outcome</th><th>Odds</th><th>Mkt Implied</th><th>Edge</th><th>Kelly (¼)</th><th></th></tr></thead><tbody>
+    ${edgeRow(r.home_team+' Win', document.getElementById('s-oh').value, r.market_analysis.H)}
+    ${edgeRow('Draw', document.getElementById('s-od').value, r.market_analysis.D)}
+    ${edgeRow(r.away_team+' Win', document.getElementById('s-oa').value, r.market_analysis.A)}
+    </tbody></table>`;
+  }
+  html += `<div style="margin-top:16px; color:var(--muted); font-size:11.5px;">Model trained as of ${r.model_trained_as_of} · ${r.league}</div>`;
+  const box = document.getElementById('s-results');
+  box.innerHTML = html; box.style.display = 'block';
+}
+
+async function runNBA() {
+  document.getElementById('n-err').style.display = 'none';
+  const home = document.getElementById('n-home').value.trim();
+  const away = document.getElementById('n-away').value.trim();
+  if (!home || !away) { showErr('n-err', 'Enter both team names.'); return; }
+  const date = document.getElementById('n-date').value;
+  const playoffs = document.getElementById('n-playoffs').checked;
+  const neutral = document.getElementById('n-neutral').checked;
+  const oh = document.getElementById('n-oh').value;
+  const oa = document.getElementById('n-oa').value;
+  let url = `${API}/api/basketball/predict?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}&game_date=${date}&is_playoffs=${playoffs}&neutral_site=${neutral}`;
+  if (oh) url += `&odds_home=${oh}`; if (oa) url += `&odds_away=${oa}`;
+  const resp = await fetch(url);
+  if (!resp.ok) { showErr('n-err', (await resp.json()).detail || 'Prediction failed'); return; }
+  const r = await resp.json();
+
+  let html = `<div class="prob-grid">
+    <div class="prob-box"><div class="label">${r.home_team} Win</div><div class="val">${pct(r.prob_home_win)}</div></div>
+    <div class="prob-box"><div class="label">${r.away_team} Win</div><div class="val">${pct(r.prob_away_win)}</div></div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">Predicted Margin (Home)</div><div class="val">${r.predicted_margin_home>0?'+':''}${r.predicted_margin_home.toFixed(1)}</div></div>
+    <div class="stat"><div class="label">Predicted Total Points</div><div class="val">${r.predicted_total_points.toFixed(1)}</div></div>
+    <div class="stat"><div class="label">Elo Rating</div><div class="val">${Math.round(r.elo_home)} – ${Math.round(r.elo_away)}</div></div>
+  </div>`;
+
+  if (r.market_analysis) {
+    html += `<div class="section-title">Market edge analysis</div>
+    <table><thead><tr><th>Outcome</th><th>Odds</th><th>Mkt Implied</th><th>Edge</th><th>Kelly (¼)</th><th></th></tr></thead><tbody>
+    ${edgeRow(r.home_team+' Win', document.getElementById('n-oh').value, r.market_analysis.H)}
+    ${edgeRow(r.away_team+' Win', document.getElementById('n-oa').value, r.market_analysis.A)}
+    </tbody></table>`;
+  }
+  html += `<div style="margin-top:16px; color:var(--muted); font-size:11.5px;">Model trained as of ${r.model_trained_as_of}</div>`;
+  const box = document.getElementById('n-results');
+  box.innerHTML = html; box.style.display = 'block';
+}
+
+function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = 'block'; }
+
+init();
+</script>
+</body>
+</html>

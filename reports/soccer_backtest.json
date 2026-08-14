@@ -1,0 +1,942 @@
+[
+  {
+    "division": "E0",
+    "league": "England - Premier League",
+    "n_train": 2036,
+    "n_test_holdout": 252,
+    "blend_alpha": 0.75,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.19054121590122225,
+    "dixon_coles_rho": 0.015179407069642145,
+    "brier": {
+      "dixon_coles_only": 0.6291551299019663,
+      "elo_only": 0.6273722227313541,
+      "blended": 0.6209575908842835,
+      "blended_calibrated": 0.6209575908842835,
+      "market": 0.5828899762510509
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0407526084044438,
+      "elo_only": 1.0411403531881958,
+      "blended": 1.0316512611996886,
+      "blended_calibrated": 1.0316512611996886,
+      "market": 0.9740577290259363
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 80,
+        "staked": 80.0,
+        "returned": 53.03,
+        "roi": -0.337125,
+        "win_rate": 0.2625
+      },
+      "draw": {
+        "n_bets": 70,
+        "staked": 70.0,
+        "returned": 78.69,
+        "roi": 0.12414285714285711,
+        "win_rate": 0.24285714285714285
+      },
+      "away": {
+        "n_bets": 90,
+        "staked": 90.0,
+        "returned": 82.51,
+        "roi": -0.08322222222222217,
+        "win_rate": 0.2
+      }
+    }
+  },
+  {
+    "division": "E1",
+    "league": "England - Championship",
+    "n_train": 2924,
+    "n_test_holdout": 379,
+    "blend_alpha": 0.8,
+    "calibration_applied": true,
+    "dixon_coles_home_adv": 0.20675445360067607,
+    "dixon_coles_rho": -0.017545303955530406,
+    "brier": {
+      "dixon_coles_only": 0.6130737352029014,
+      "elo_only": 0.6369221543351661,
+      "blended": 0.6126615380851846,
+      "blended_calibrated": 0.6126727601534199,
+      "market": 0.6152773303755296
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0203597573843288,
+      "elo_only": 1.0536407214048853,
+      "blended": 1.0198012994822168,
+      "blended_calibrated": 1.021281579717982,
+      "market": 1.0234890701520059
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 149,
+        "staked": 149.0,
+        "returned": 190.59,
+        "roi": 0.2791275167785235,
+        "win_rate": 0.46308724832214765
+      },
+      "draw": {
+        "n_bets": 28,
+        "staked": 28.0,
+        "returned": 29.690000000000005,
+        "roi": 0.06035714285714303,
+        "win_rate": 0.21428571428571427
+      },
+      "away": {
+        "n_bets": 89,
+        "staked": 89.0,
+        "returned": 73.0,
+        "roi": -0.1797752808988764,
+        "win_rate": 0.23595505617977527
+      }
+    }
+  },
+  {
+    "division": "SP1",
+    "league": "Spain - La Liga",
+    "n_train": 2033,
+    "n_test_holdout": 253,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.2658142317727347,
+    "dixon_coles_rho": -0.06932540858409804,
+    "brier": {
+      "dixon_coles_only": 0.602260361031109,
+      "elo_only": 0.6029940087303418,
+      "blended": 0.602260361031109,
+      "blended_calibrated": 0.602260361031109,
+      "market": 0.5648947971238432
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0096149211683236,
+      "elo_only": 1.0075788599865352,
+      "blended": 1.0096149211683236,
+      "blended_calibrated": 1.0096149211683236,
+      "market": 0.9562161516017357
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 78,
+        "staked": 78.0,
+        "returned": 60.66,
+        "roi": -0.22230769230769235,
+        "win_rate": 0.32051282051282054
+      },
+      "draw": {
+        "n_bets": 59,
+        "staked": 59.0,
+        "returned": 46.96,
+        "roi": -0.20406779661016947,
+        "win_rate": 0.1864406779661017
+      },
+      "away": {
+        "n_bets": 68,
+        "staked": 68.0,
+        "returned": 71.74000000000001,
+        "roi": 0.05500000000000013,
+        "win_rate": 0.23529411764705882
+      }
+    }
+  },
+  {
+    "division": "SP2",
+    "league": "Spain - Segunda Division",
+    "n_train": 2451,
+    "n_test_holdout": 309,
+    "blend_alpha": 0.8500000000000001,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.34339380302803946,
+    "dixon_coles_rho": -0.08222396012194405,
+    "brier": {
+      "dixon_coles_only": 0.6328329384369139,
+      "elo_only": 0.6325100033614031,
+      "blended": 0.628957944427327,
+      "blended_calibrated": 0.628957944427327,
+      "market": 0.5959237071302733
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0479189304513397,
+      "elo_only": 1.0466142149995137,
+      "blended": 1.0425170652779137,
+      "blended_calibrated": 1.0425170652779137,
+      "market": 0.9969474702757292
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 93,
+        "staked": 93.0,
+        "returned": 84.83000000000001,
+        "roi": -0.08784946236559127,
+        "win_rate": 0.3548387096774194
+      },
+      "draw": {
+        "n_bets": 130,
+        "staked": 130.0,
+        "returned": 114.38000000000001,
+        "roi": -0.12015384615384608,
+        "win_rate": 0.25384615384615383
+      },
+      "away": {
+        "n_bets": 80,
+        "staked": 80.0,
+        "returned": 51.08,
+        "roi": -0.36150000000000004,
+        "win_rate": 0.15
+      }
+    }
+  },
+  {
+    "division": "I1",
+    "league": "Italy - Serie A",
+    "n_train": 2032,
+    "n_test_holdout": 254,
+    "blend_alpha": 0.8,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.198223762573245,
+    "dixon_coles_rho": -0.06389601825336166,
+    "brier": {
+      "dixon_coles_only": 0.5939305016172144,
+      "elo_only": 0.6025242910640483,
+      "blended": 0.5916433623225517,
+      "blended_calibrated": 0.5916433623225517,
+      "market": 0.5664518207821649
+    },
+    "log_loss": {
+      "dixon_coles_only": 0.9895786015207787,
+      "elo_only": 1.001806867384288,
+      "blended": 0.9866744266498207,
+      "blended_calibrated": 0.9866744266498207,
+      "market": 0.9511123818324335
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 61,
+        "staked": 61.0,
+        "returned": 42.5,
+        "roi": -0.30327868852459017,
+        "win_rate": 0.3114754098360656
+      },
+      "draw": {
+        "n_bets": 42,
+        "staked": 42.0,
+        "returned": 17.83,
+        "roi": -0.5754761904761905,
+        "win_rate": 0.11904761904761904
+      },
+      "away": {
+        "n_bets": 62,
+        "staked": 62.0,
+        "returned": 53.230000000000004,
+        "roi": -0.14145161290322575,
+        "win_rate": 0.25806451612903225
+      }
+    }
+  },
+  {
+    "division": "I2",
+    "league": "Italy - Serie B",
+    "n_train": 1995,
+    "n_test_holdout": 260,
+    "blend_alpha": 0.1,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.19306471354270902,
+    "dixon_coles_rho": -0.0907323501733485,
+    "brier": {
+      "dixon_coles_only": 0.670354437978545,
+      "elo_only": 0.6530609689453207,
+      "blended": 0.6514852413111947,
+      "blended_calibrated": 0.6514852413111947,
+      "market": 0.6292631069250099
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.1008264382081052,
+      "elo_only": 1.076777450381025,
+      "blended": 1.074371668708451,
+      "blended_calibrated": 1.074371668708451,
+      "market": 1.0439997404428527
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 18,
+        "staked": 18.0,
+        "returned": 2.94,
+        "roi": -0.8366666666666667,
+        "win_rate": 0.05555555555555555
+      },
+      "draw": {
+        "n_bets": 251,
+        "staked": 251.0,
+        "returned": 265.28,
+        "roi": 0.056892430278884354,
+        "win_rate": 0.33067729083665337
+      },
+      "away": {
+        "n_bets": 21,
+        "staked": 21.0,
+        "returned": 19.35,
+        "roi": -0.0785714285714285,
+        "win_rate": 0.19047619047619047
+      }
+    }
+  },
+  {
+    "division": "D1",
+    "league": "Germany - Bundesliga",
+    "n_train": 1621,
+    "n_test_holdout": 211,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.2977610689514841,
+    "dixon_coles_rho": -0.13467758953864142,
+    "brier": {
+      "dixon_coles_only": 0.6309247768188125,
+      "elo_only": 0.6386830539419714,
+      "blended": 0.6309247768188125,
+      "blended_calibrated": 0.6309247768188125,
+      "market": 0.603823942248388
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0528410274177455,
+      "elo_only": 1.0602092133925871,
+      "blended": 1.0528410274177455,
+      "blended_calibrated": 1.0528410274177455,
+      "market": 1.007952735318587
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 77,
+        "staked": 77.0,
+        "returned": 45.16,
+        "roi": -0.41350649350649354,
+        "win_rate": 0.2597402597402597
+      },
+      "draw": {
+        "n_bets": 27,
+        "staked": 27.0,
+        "returned": 33.739999999999995,
+        "roi": 0.24962962962962945,
+        "win_rate": 0.25925925925925924
+      },
+      "away": {
+        "n_bets": 37,
+        "staked": 37.0,
+        "returned": 32.65,
+        "roi": -0.1175675675675676,
+        "win_rate": 0.1891891891891892
+      }
+    }
+  },
+  {
+    "division": "D2",
+    "league": "Germany - Bundesliga 2",
+    "n_train": 1608,
+    "n_test_holdout": 209,
+    "blend_alpha": 0.75,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.2130120560723434,
+    "dixon_coles_rho": -0.04702134078033692,
+    "brier": {
+      "dixon_coles_only": 0.6525280792807935,
+      "elo_only": 0.66658195294315,
+      "blended": 0.6469713058351043,
+      "blended_calibrated": 0.6469713058351043,
+      "market": 0.6363521711965275
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0779801204687292,
+      "elo_only": 1.0994596121673144,
+      "blended": 1.0700859253835204,
+      "blended_calibrated": 1.0700859253835204,
+      "market": 1.0551425301903012
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 71,
+        "staked": 71.0,
+        "returned": 71.12,
+        "roi": 0.0016901408450704866,
+        "win_rate": 0.39436619718309857
+      },
+      "draw": {
+        "n_bets": 33,
+        "staked": 33.0,
+        "returned": 16.09,
+        "roi": -0.5124242424242424,
+        "win_rate": 0.12121212121212122
+      },
+      "away": {
+        "n_bets": 45,
+        "staked": 45.0,
+        "returned": 41.76,
+        "roi": -0.07200000000000005,
+        "win_rate": 0.2222222222222222
+      }
+    }
+  },
+  {
+    "division": "F1",
+    "league": "France - Ligue 1",
+    "n_train": 1859,
+    "n_test_holdout": 211,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.197119871025631,
+    "dixon_coles_rho": -0.09900859870314341,
+    "brier": {
+      "dixon_coles_only": 0.5958174563678448,
+      "elo_only": 0.619810005084526,
+      "blended": 0.5958174563678448,
+      "blended_calibrated": 0.5958174563678448,
+      "market": 0.5659425240178445
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0040172176263722,
+      "elo_only": 1.0360491496042399,
+      "blended": 1.0040172176263722,
+      "blended_calibrated": 1.0040172176263722,
+      "market": 0.9583692803231209
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 65,
+        "staked": 65.0,
+        "returned": 74.16,
+        "roi": 0.14092307692307687,
+        "win_rate": 0.4307692307692308
+      },
+      "draw": {
+        "n_bets": 71,
+        "staked": 71.0,
+        "returned": 38.18,
+        "roi": -0.46225352112676055,
+        "win_rate": 0.14084507042253522
+      },
+      "away": {
+        "n_bets": 67,
+        "staked": 67.0,
+        "returned": 75.57,
+        "roi": 0.12791044776119392,
+        "win_rate": 0.26865671641791045
+      }
+    }
+  },
+  {
+    "division": "F2",
+    "league": "France - Ligue 2",
+    "n_train": 1899,
+    "n_test_holdout": 228,
+    "blend_alpha": 0.9,
+    "calibration_applied": true,
+    "dixon_coles_home_adv": 0.19701569240425043,
+    "dixon_coles_rho": -0.005189487658840728,
+    "brier": {
+      "dixon_coles_only": 0.6526049769831734,
+      "elo_only": 0.652571029664507,
+      "blended": 0.6489085404379346,
+      "blended_calibrated": 0.6366776694491627,
+      "market": 0.6117018585360272
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.078768781528428,
+      "elo_only": 1.0768171848988735,
+      "blended": 1.0734266503180647,
+      "blended_calibrated": 1.0557853201210565,
+      "market": 1.0248844872141485
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 106,
+        "staked": 106.0,
+        "returned": 111.74000000000001,
+        "roi": 0.0541509433962265,
+        "win_rate": 0.33962264150943394
+      },
+      "draw": {
+        "n_bets": 47,
+        "staked": 47.0,
+        "returned": 40.239999999999995,
+        "roi": -0.14382978723404266,
+        "win_rate": 0.23404255319148937
+      },
+      "away": {
+        "n_bets": 70,
+        "staked": 70.0,
+        "returned": 75.34,
+        "roi": 0.07628571428571433,
+        "win_rate": 0.2
+      }
+    }
+  },
+  {
+    "division": "N1",
+    "league": "Netherlands - Eredivisie",
+    "n_train": 1543,
+    "n_test_holdout": 209,
+    "blend_alpha": 0.9,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.21015108242630817,
+    "dixon_coles_rho": -0.11161305409925167,
+    "brier": {
+      "dixon_coles_only": 0.5916487699797746,
+      "elo_only": 0.5974346336337909,
+      "blended": 0.5887024185324119,
+      "blended_calibrated": 0.5887024185324119,
+      "market": 0.5852451845014937
+    },
+    "log_loss": {
+      "dixon_coles_only": 0.9885737957626803,
+      "elo_only": 0.9985497817725346,
+      "blended": 0.9840787027127346,
+      "blended_calibrated": 0.9840787027127346,
+      "market": 0.9805437135175583
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 46,
+        "staked": 46.0,
+        "returned": 54.900000000000006,
+        "roi": 0.19347826086956535,
+        "win_rate": 0.6521739130434783
+      },
+      "draw": {
+        "n_bets": 34,
+        "staked": 34.0,
+        "returned": 43.03,
+        "roi": 0.2655882352941177,
+        "win_rate": 0.3235294117647059
+      },
+      "away": {
+        "n_bets": 60,
+        "staked": 60.0,
+        "returned": 44.07,
+        "roi": -0.2655,
+        "win_rate": 0.2833333333333333
+      }
+    }
+  },
+  {
+    "division": "P1",
+    "league": "Portugal - Primeira Liga",
+    "n_train": 1629,
+    "n_test_holdout": 212,
+    "blend_alpha": 0.6000000000000001,
+    "calibration_applied": true,
+    "dixon_coles_home_adv": 0.2297084223973344,
+    "dixon_coles_rho": 0.07138793841290407,
+    "brier": {
+      "dixon_coles_only": 0.6012795356655078,
+      "elo_only": 0.6025368356806089,
+      "blended": 0.5917069920772106,
+      "blended_calibrated": 0.6001781661851409,
+      "market": 0.5828592161858658
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0065908805126975,
+      "elo_only": 1.0067247980950176,
+      "blended": 0.9924828520635155,
+      "blended_calibrated": 1.0105775740540448,
+      "market": 0.9781508937743243
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 83,
+        "staked": 83.0,
+        "returned": 72.91,
+        "roi": -0.121566265060241,
+        "win_rate": 0.4939759036144578
+      },
+      "draw": {
+        "n_bets": 41,
+        "staked": 41.0,
+        "returned": 45.940000000000005,
+        "roi": 0.1204878048780489,
+        "win_rate": 0.2682926829268293
+      },
+      "away": {
+        "n_bets": 44,
+        "staked": 44.0,
+        "returned": 44.92,
+        "roi": 0.020909090909090947,
+        "win_rate": 0.36363636363636365
+      }
+    }
+  },
+  {
+    "division": "B1",
+    "league": "Belgium - Pro League",
+    "n_train": 1481,
+    "n_test_holdout": 206,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.206733810759321,
+    "dixon_coles_rho": -0.02733922428324578,
+    "brier": {
+      "dixon_coles_only": 0.5987557201994415,
+      "elo_only": 0.606223734709036,
+      "blended": 0.5987557201994415,
+      "blended_calibrated": 0.5987557201994415,
+      "market": 0.581126591978272
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0042719389601298,
+      "elo_only": 1.0093565324032032,
+      "blended": 1.0042719389601298,
+      "blended_calibrated": 1.0042719389601298,
+      "market": 0.9788181609235479
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 72,
+        "staked": 72.0,
+        "returned": 65.52,
+        "roi": -0.09000000000000005,
+        "win_rate": 0.4166666666666667
+      },
+      "draw": {
+        "n_bets": 5,
+        "staked": 5.0,
+        "returned": 6.25,
+        "roi": 0.25,
+        "win_rate": 0.2
+      },
+      "away": {
+        "n_bets": 71,
+        "staked": 71.0,
+        "returned": 43.980000000000004,
+        "roi": -0.38056338028169007,
+        "win_rate": 0.22535211267605634
+      }
+    }
+  },
+  {
+    "division": "SC0",
+    "league": "Scotland - Premiership",
+    "n_train": 1169,
+    "n_test_holdout": 138,
+    "blend_alpha": 0.6000000000000001,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.23569366301440192,
+    "dixon_coles_rho": 0.02435989152740055,
+    "brier": {
+      "dixon_coles_only": 0.580645624342765,
+      "elo_only": 0.6140283791410278,
+      "blended": 0.5839149070094487,
+      "blended_calibrated": 0.5839149070094487,
+      "market": 0.5768351215381152
+    },
+    "log_loss": {
+      "dixon_coles_only": 0.979834264988121,
+      "elo_only": 1.0282310176644718,
+      "blended": 0.9843718878741287,
+      "blended_calibrated": 0.9843718878741287,
+      "market": 0.9782335870164488
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 21,
+        "staked": 21.0,
+        "returned": 32.72,
+        "roi": 0.5580952380952381,
+        "win_rate": 0.38095238095238093
+      },
+      "draw": {
+        "n_bets": 68,
+        "staked": 68.0,
+        "returned": 57.14,
+        "roi": -0.15970588235294117,
+        "win_rate": 0.20588235294117646
+      },
+      "away": {
+        "n_bets": 16,
+        "staked": 16.0,
+        "returned": 11.86,
+        "roi": -0.25875000000000004,
+        "win_rate": 0.1875
+      }
+    }
+  },
+  {
+    "division": "T1",
+    "league": "Turkey - Super Lig",
+    "n_train": 1905,
+    "n_test_holdout": 212,
+    "blend_alpha": 0.65,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.23125036089569187,
+    "dixon_coles_rho": -0.10328109470326763,
+    "brier": {
+      "dixon_coles_only": 0.5803255624724227,
+      "elo_only": 0.5888757773609535,
+      "blended": 0.5758216117529044,
+      "blended_calibrated": 0.5758216117529044,
+      "market": 0.531137073935539
+    },
+    "log_loss": {
+      "dixon_coles_only": 0.9772582719648608,
+      "elo_only": 0.986536309421211,
+      "blended": 0.9698161610219963,
+      "blended_calibrated": 0.9698161610219963,
+      "market": 0.9114121626634335
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 44,
+        "staked": 44.0,
+        "returned": 41.489999999999995,
+        "roi": -0.05704545454545466,
+        "win_rate": 0.38636363636363635
+      },
+      "draw": {
+        "n_bets": 135,
+        "staked": 135.0,
+        "returned": 104.76,
+        "roi": -0.22399999999999995,
+        "win_rate": 0.2074074074074074
+      },
+      "away": {
+        "n_bets": 38,
+        "staked": 38.0,
+        "returned": 43.18,
+        "roi": 0.1363157894736842,
+        "win_rate": 0.18421052631578946
+      }
+    }
+  },
+  {
+    "division": "G1",
+    "league": "Greece - Super League",
+    "n_train": 879,
+    "n_test_holdout": 78,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.21533179674052402,
+    "dixon_coles_rho": -0.049465835601341074,
+    "brier": {
+      "dixon_coles_only": 0.6021292810523945,
+      "elo_only": 0.6474994380104954,
+      "blended": 0.6021292810523944,
+      "blended_calibrated": 0.6021292810523944,
+      "market": 0.5812745546259813
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.021417119769605,
+      "elo_only": 1.0733373663795462,
+      "blended": 1.021417119769605,
+      "blended_calibrated": 1.021417119769605,
+      "market": 0.9806402571219897
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 26,
+        "staked": 26.0,
+        "returned": 36.03,
+        "roi": 0.3857692307692308,
+        "win_rate": 0.46153846153846156
+      },
+      "draw": {
+        "n_bets": 25,
+        "staked": 25.0,
+        "returned": 8.0,
+        "roi": -0.68,
+        "win_rate": 0.08
+      },
+      "away": {
+        "n_bets": 25,
+        "staked": 25.0,
+        "returned": 32.14,
+        "roi": 0.2856,
+        "win_rate": 0.36
+      }
+    }
+  },
+  {
+    "division": "USA",
+    "league": "USA - MLS",
+    "n_train": 2341,
+    "n_test_holdout": 303,
+    "blend_alpha": 0.45,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.4150261756007116,
+    "dixon_coles_rho": -0.07047227229219045,
+    "brier": {
+      "dixon_coles_only": 0.6637957540963711,
+      "elo_only": 0.6577549352787856,
+      "blended": 0.6468784782122501,
+      "blended_calibrated": 0.6468784782122501,
+      "market": 0.6152230159270381
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.094151617055862,
+      "elo_only": 1.086372907885661,
+      "blended": 1.0718034849476805,
+      "blended_calibrated": 1.0718034849476805,
+      "market": 1.0250445753050181
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 29,
+        "staked": 29.0,
+        "returned": 22.060000000000002,
+        "roi": -0.23931034482758612,
+        "win_rate": 0.3103448275862069
+      },
+      "draw": {
+        "n_bets": 276,
+        "staked": 276.0,
+        "returned": 273.82,
+        "roi": -0.007898550724637706,
+        "win_rate": 0.2536231884057971
+      },
+      "away": {
+        "n_bets": 61,
+        "staked": 61.0,
+        "returned": 38.79,
+        "roi": -0.3640983606557377,
+        "win_rate": 0.14754098360655737
+      }
+    }
+  },
+  {
+    "division": "BRA",
+    "league": "Brazil - Serie A",
+    "n_train": 2015,
+    "n_test_holdout": 211,
+    "blend_alpha": 1.0,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.3513479530098939,
+    "dixon_coles_rho": -0.015851164050442422,
+    "brier": {
+      "dixon_coles_only": 0.6123109485040711,
+      "elo_only": 0.6367115699944368,
+      "blended": 0.6123109485040711,
+      "blended_calibrated": 0.6123109485040711,
+      "market": 0.5844690123144386
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.027066356621118,
+      "elo_only": 1.057810013360735,
+      "blended": 1.027066356621118,
+      "blended_calibrated": 1.027066356621118,
+      "market": 0.9853402318085835
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 69,
+        "staked": 69.0,
+        "returned": 60.879999999999995,
+        "roi": -0.11768115942028992,
+        "win_rate": 0.43478260869565216
+      },
+      "draw": {
+        "n_bets": 20,
+        "staked": 20.0,
+        "returned": 16.47,
+        "roi": -0.17650000000000005,
+        "win_rate": 0.25
+      },
+      "away": {
+        "n_bets": 67,
+        "staked": 67.0,
+        "returned": 62.84,
+        "roi": -0.06208955223880592,
+        "win_rate": 0.22388059701492538
+      }
+    }
+  },
+  {
+    "division": "ARG",
+    "league": "Argentina - Primera Division",
+    "n_train": 2242,
+    "n_test_holdout": 304,
+    "blend_alpha": 0.30000000000000004,
+    "calibration_applied": false,
+    "dixon_coles_home_adv": 0.25541965495124785,
+    "dixon_coles_rho": -0.052313374880455676,
+    "brier": {
+      "dixon_coles_only": 0.6353095327846354,
+      "elo_only": 0.6506114231468968,
+      "blended": 0.6410099694606626,
+      "blended_calibrated": 0.6410099694606626,
+      "market": 0.6119446729610349
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0513345103976903,
+      "elo_only": 1.0730609446115917,
+      "blended": 1.0592906454411561,
+      "blended_calibrated": 1.0592906454411561,
+      "market": 1.0200468716133009
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 44,
+        "staked": 44.0,
+        "returned": 46.69,
+        "roi": 0.061136363636363586,
+        "win_rate": 0.29545454545454547
+      },
+      "draw": {
+        "n_bets": 235,
+        "staked": 235.0,
+        "returned": 214.42000000000002,
+        "roi": -0.08757446808510631,
+        "win_rate": 0.2936170212765957
+      },
+      "away": {
+        "n_bets": 66,
+        "staked": 66.0,
+        "returned": 47.21,
+        "roi": -0.28469696969696967,
+        "win_rate": 0.12121212121212122
+      }
+    }
+  },
+  {
+    "division": "MEX",
+    "league": "Mexico - Liga MX",
+    "n_train": 1716,
+    "n_test_holdout": 183,
+    "blend_alpha": 1.0,
+    "calibration_applied": true,
+    "dixon_coles_home_adv": 0.21843569294329557,
+    "dixon_coles_rho": -0.07627483808607104,
+    "brier": {
+      "dixon_coles_only": 0.6209649189742092,
+      "elo_only": 0.6217759466846875,
+      "blended": 0.6209649189742092,
+      "blended_calibrated": 0.6192940770660612,
+      "market": 0.5749176567731408
+    },
+    "log_loss": {
+      "dixon_coles_only": 1.0365756396037182,
+      "elo_only": 1.0384165744407419,
+      "blended": 1.0365756396037182,
+      "blended_calibrated": 1.0348494395858052,
+      "market": 0.9700748576022736
+    },
+    "value_betting_sim": {
+      "home": {
+        "n_bets": 104,
+        "staked": 104.0,
+        "returned": 103.63,
+        "roi": -0.0035576923076923515,
+        "win_rate": 0.4230769230769231
+      },
+      "draw": {
+        "n_bets": 7,
+        "staked": 7.0,
+        "returned": 9.879999999999999,
+        "roi": 0.4114285714285713,
+        "win_rate": 0.2857142857142857
+      },
+      "away": {
+        "n_bets": 43,
+        "staked": 43.0,
+        "returned": 16.79,
+        "roi": -0.6095348837209302,
+        "win_rate": 0.13953488372093023
+      }
+    }
+  }
+]
