@@ -204,6 +204,7 @@
   <div class="tab" id="tab-custom" onclick="switchMainTab('custom')">Custom Matchup</div>
   <div class="tab" id="tab-analytics" onclick="switchMainTab('analytics')">Analytics</div>
   <div class="tab" id="tab-log" onclick="switchMainTab('log')">Prediction Log</div>
+  <div class="tab" id="tab-acca" onclick="switchMainTab('acca')">Accumulator</div>
 </div>
 <main>
 
@@ -252,12 +253,16 @@
           <datalist id="s-away-list"></datalist>
         </div>
       </div>
-      <div class="section-title">Market odds (decimal) — optional, enables edge/Kelly analysis</div>
-      <div class="row">
+      <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0;">
+        <span>Market odds (decimal) — optional, enables edge/Kelly analysis</span>
+        <span id="s-odds-fetch" style="text-transform:none; letter-spacing:0; cursor:pointer; color:var(--accent2); font-weight:700;" onclick="fetchRealOdds('soccer')">&#8635; Fetch real odds</span>
+      </div>
+      <div class="row" style="margin-top:10px;">
         <div class="field"><label>Odds Home</label><input id="s-oh" type="number" step="0.01" placeholder="1.90"></div>
         <div class="field"><label>Odds Draw</label><input id="s-od" type="number" step="0.01" placeholder="3.60"></div>
         <div class="field"><label>Odds Away</label><input id="s-oa" type="number" step="0.01" placeholder="4.20"></div>
       </div>
+      <div id="s-odds-note" style="font-size:11.5px; color:var(--dim); margin-top:-6px; margin-bottom:14px;"></div>
       <button onclick="runSoccer()">Predict</button>
       <div class="err" id="s-err" style="display:none;"></div>
       <div class="results" id="s-results"></div>
@@ -280,8 +285,11 @@
           <input id="n-date" type="date">
         </div>
       </div>
-      <div class="section-title">Market odds (decimal) — optional</div>
-      <div class="row">
+      <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0;">
+        <span>Market odds (decimal) — optional</span>
+        <span id="n-odds-fetch" style="text-transform:none; letter-spacing:0; cursor:pointer; color:var(--accent2); font-weight:700;" onclick="fetchRealOdds('basketball')">&#8635; Fetch real odds</span>
+      </div>
+      <div class="row" style="margin-top:10px;">
         <div class="field"><label>Odds Home</label><input id="n-oh" type="number" step="0.01" placeholder="1.55"></div>
         <div class="field"><label>Odds Away</label><input id="n-oa" type="number" step="0.01" placeholder="2.50"></div>
         <div class="field" style="display:flex; align-items:flex-end; gap:14px;">
@@ -293,6 +301,7 @@
           </label>
         </div>
       </div>
+      <div id="n-odds-note" style="font-size:11.5px; color:var(--dim); margin-top:-6px; margin-bottom:14px;"></div>
       <button onclick="runNBA()">Predict</button>
       <div class="err" id="n-err" style="display:none;"></div>
       <div class="results" id="n-results"></div>
@@ -316,6 +325,10 @@
           <label>To</label>
           <input type="date" id="log-to" onchange="renderTrackingLog()">
         </div>
+        <div class="field" style="min-width:200px;">
+          <label>League</label>
+          <select id="log-league" onchange="renderTrackingLog()"><option value="">All Leagues</option></select>
+        </div>
         <button class="ghost" style="align-self:flex-end;" onclick="clearLogFilter()">Clear filter</button>
       </div>
       <div class="toolbar-controls">
@@ -323,7 +336,40 @@
         <button onclick="exportLogCsv()">&#8681; Export CSV</button>
       </div>
     </div>
+    <div class="chip-row">
+      <button class="chip active" id="log-chip-all" onclick="setLogSportFilter('all')">All Sports</button>
+      <button class="chip" id="log-chip-soccer" onclick="setLogSportFilter('soccer')">&#9917; Soccer</button>
+      <button class="chip" id="log-chip-basketball" onclick="setLogSportFilter('basketball')">&#127936; Basketball</button>
+    </div>
     <div id="log-content"><div class="loading"><div class="spinner"></div>Loading prediction log…</div></div>
+  </div>
+
+  <!-- ============ ACCUMULATOR ============ -->
+  <div id="panel-acca" style="display:none;">
+    <div class="card">
+      <div class="row">
+        <div class="field" style="min-width:120px; flex:0 0 auto;">
+          <label>Legs</label>
+          <input type="number" id="acca-legs" value="3" min="2" max="6" step="1">
+        </div>
+        <div class="field" style="min-width:140px; flex:0 0 auto;">
+          <label>Min Combined Odds</label>
+          <input type="number" id="acca-min-odds" value="5.0" min="1.1" step="0.1">
+        </div>
+        <div class="field" style="min-width:140px;">
+          <label>From</label>
+          <input type="date" id="acca-from">
+        </div>
+        <div class="field" style="min-width:140px;">
+          <label>To</label>
+          <input type="date" id="acca-to">
+        </div>
+        <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+          <button onclick="buildAccumulator()">Build Accumulator</button>
+        </div>
+      </div>
+    </div>
+    <div id="acca-content" style="margin-top:20px;"></div>
   </div>
 
   <div class="disclaimer">
@@ -352,10 +398,12 @@ function switchMainTab(t) {
   document.getElementById('tab-custom').classList.toggle('active', t==='custom');
   document.getElementById('tab-analytics').classList.toggle('active', t==='analytics');
   document.getElementById('tab-log').classList.toggle('active', t==='log');
+  document.getElementById('tab-acca').classList.toggle('active', t==='acca');
   document.getElementById('panel-live').style.display = t==='live' ? 'block' : 'none';
   document.getElementById('panel-custom').style.display = t==='custom' ? 'block' : 'none';
   document.getElementById('panel-analytics').style.display = t==='analytics' ? 'block' : 'none';
   document.getElementById('panel-log').style.display = t==='log' ? 'block' : 'none';
+  document.getElementById('panel-acca').style.display = t==='acca' ? 'block' : 'none';
   if (t === 'analytics' && !ANALYTICS_LOADED) loadAnalytics();
   if (t === 'log' && !LOG_DATA) loadTrackingLog();
 }
@@ -614,6 +662,43 @@ function edgeRow(label, odds, ea) {
   </tr>`;
 }
 
+async function fetchRealOdds(kind) {
+  const noteId = kind === 'soccer' ? 's-odds-note' : 'n-odds-note';
+  const note = document.getElementById(noteId);
+  note.textContent = 'Looking up real odds…';
+  try {
+    let url, home, away;
+    if (kind === 'soccer') {
+      const div = document.getElementById('s-league').value;
+      home = document.getElementById('s-home').value.trim();
+      away = document.getElementById('s-away').value.trim();
+      if (!home || !away) { note.textContent = 'Enter both team names first.'; return; }
+      url = `${API}/api/odds/soccer?div=${div}&home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`;
+    } else {
+      home = document.getElementById('n-home').value.trim();
+      away = document.getElementById('n-away').value.trim();
+      if (!home || !away) { note.textContent = 'Enter both team names first.'; return; }
+      url = `${API}/api/odds/basketball?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`;
+    }
+    const r = await (await fetch(url)).json();
+    if (!r.available) {
+      note.textContent = `No real odds found (${r.reason || 'unavailable'}).`;
+      return;
+    }
+    if (kind === 'soccer') {
+      if (r.odds_home != null) document.getElementById('s-oh').value = r.odds_home;
+      if (r.odds_draw != null) document.getElementById('s-od').value = r.odds_draw;
+      if (r.odds_away != null) document.getElementById('s-oa').value = r.odds_away;
+    } else {
+      if (r.odds_home != null) document.getElementById('n-oh').value = r.odds_home;
+      if (r.odds_away != null) document.getElementById('n-oa').value = r.odds_away;
+    }
+    note.textContent = `Real odds from ${r.bookmaker_count} bookmaker(s) via the-odds-api.com, best price per outcome. ${r.event_home} vs ${r.event_away}.`;
+  } catch (e) {
+    note.textContent = `Couldn't fetch real odds: ${e.message}`;
+  }
+}
+
 async function runSoccer() {
   document.getElementById('s-err').style.display = 'none';
   const div = document.getElementById('s-league').value;
@@ -781,6 +866,8 @@ function renderAnalytics(data) {
 }
 
 // ---------------- PREDICTION LOG ----------------
+let LOG_SPORT_FILTER = 'all';
+
 async function loadTrackingLog() {
   const box = document.getElementById('log-content');
   box.innerHTML = '<div class="loading"><div class="spinner"></div>Loading prediction log…</div>';
@@ -788,6 +875,7 @@ async function loadTrackingLog() {
     const resp = await fetch(API + '/api/tracking/log');
     if (!resp.ok) throw new Error('Failed to load prediction log');
     LOG_DATA = await resp.json();
+    populateLogLeagueOptions();
     renderTrackingLog();
   } catch (e) {
     LOG_DATA = null;
@@ -795,17 +883,38 @@ async function loadTrackingLog() {
   }
 }
 
+function setLogSportFilter(s) {
+  LOG_SPORT_FILTER = s;
+  ['all','soccer','basketball'].forEach(k => document.getElementById('log-chip-'+k).classList.toggle('active', k===s));
+  populateLogLeagueOptions();
+  renderTrackingLog();
+}
+
+function populateLogLeagueOptions() {
+  if (!LOG_DATA) return;
+  const sel = document.getElementById('log-league');
+  const current = sel.value;
+  const inScope = LOG_DATA.entries.filter(e => LOG_SPORT_FILTER === 'all' || e.sport === LOG_SPORT_FILTER);
+  const leagues = [...new Set(inScope.map(e => e.league))].sort();
+  sel.innerHTML = '<option value="">All Leagues</option>' + leagues.map(l => `<option value="${l}">${l}</option>`).join('');
+  if (leagues.includes(current)) sel.value = current;
+}
+
 function clearLogFilter() {
   document.getElementById('log-from').value = '';
   document.getElementById('log-to').value = '';
-  renderTrackingLog();
+  document.getElementById('log-league').value = '';
+  setLogSportFilter('all');
 }
 
 function filteredLogEntries() {
   if (!LOG_DATA) return [];
   const from = document.getElementById('log-from').value;
   const to = document.getElementById('log-to').value;
+  const league = document.getElementById('log-league').value;
   return LOG_DATA.entries.filter(e => {
+    if (LOG_SPORT_FILTER !== 'all' && e.sport !== LOG_SPORT_FILTER) return false;
+    if (league && e.league !== league) return false;
     if (!e.date) return true;
     if (from && e.date < from) return false;
     if (to && e.date > to) return false;
@@ -935,6 +1044,80 @@ function exportLogCsv() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ---------------- ACCUMULATOR ----------------
+async function buildAccumulator() {
+  const box = document.getElementById('acca-content');
+  box.innerHTML = '<div class="loading"><div class="spinner"></div>Searching fixtures for the best combination…</div>';
+  const legs = document.getElementById('acca-legs').value || 3;
+  const minOdds = document.getElementById('acca-min-odds').value || 5.0;
+  const from = document.getElementById('acca-from').value;
+  const to = document.getElementById('acca-to').value;
+  let url = `${API}/api/accumulator?legs=${legs}&min_odds=${minOdds}`;
+  if (from) url += `&date_from=${from}`;
+  if (to) url += `&date_to=${to}`;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    renderAccumulator(data);
+  } catch (e) {
+    box.innerHTML = `<div class="error-banner">Couldn't build accumulator: ${e.message}</div>`;
+  }
+}
+
+function accaLegCard(leg) {
+  const modelOdds = 1 / leg.probability;
+  const realOddsStr = leg.real_odds != null
+    ? `<span style="color:var(--pos); font-weight:700;">${leg.real_odds.toFixed(2)}</span>`
+    : `<span style="color:var(--dim);">not available</span>`;
+  const rationale = leg.rationale && leg.rationale.length
+    ? `<ul style="margin:10px 0 0; padding-left:18px;">${leg.rationale.map(b => `<li style="font-size:11.5px; color:var(--muted); line-height:1.6; margin-bottom:4px;">${b}</li>`).join('')}</ul>`
+    : '';
+  return `<div class="fixture-card" style="margin-bottom:12px;">
+    <div class="fixture-top">
+      <div class="matchup">
+        <div class="team-row">${avatar(leg.home)}<span class="team-name">${leg.home} vs ${leg.away}</span></div>
+      </div>
+      <div class="fixture-when">${leg.league} · ${fmtWhen(leg.date, leg.time)}</div>
+    </div>
+    <div class="fixture-meta" style="margin-top:12px; align-items:center;">
+      <span style="font-size:14px; font-weight:700; color:var(--text);">${leg.label}</span>
+      <span>Model probability <b>${pct(leg.probability)}</b></span>
+      <span>Model-implied odds <b>${modelOdds.toFixed(2)}</b></span>
+      <span>Real odds ${realOddsStr}</span>
+    </div>
+    ${rationale}
+  </div>`;
+}
+
+function renderAccumulator(data) {
+  const box = document.getElementById('acca-content');
+  if (!data.ok) {
+    box.innerHTML = `<div class="error-banner">${data.reason}</div>`;
+    return;
+  }
+  const legsHtml = data.legs.map(accaLegCard).join('');
+  const realOddsSummary = data.combined_real_odds != null
+    ? `<div class="stat"><div class="label">Combined Real Odds</div><div class="val" style="color:var(--pos);">${data.combined_real_odds.toFixed(2)}</div></div>`
+    : `<div class="stat"><div class="label">Combined Real Odds</div><div class="val" style="color:var(--dim); font-size:13px;">not fully available</div></div>`;
+
+  box.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:20px;">
+      <div class="stat"><div class="label">Combined Model-Implied Odds</div><div class="val">${data.combined_odds.toFixed(2)}</div></div>
+      ${realOddsSummary}
+      <div class="stat"><div class="label">Combined Win Probability</div><div class="val">${pct(data.combined_probability)}</div></div>
+      <div class="stat"><div class="label">Fixtures Considered</div><div class="val">${data.candidates_considered}</div></div>
+    </div>
+    ${legsHtml}
+    <div class="why-scope" style="margin-top:8px;">
+      "Model-implied odds" = 1 / the model's predicted probability for that pick — a read on how confident
+      the model is, <b>not a real price any sportsbook has actually offered</b>. "Real odds" (where shown)
+      are the best available decimal price across UK bookmakers tracked by the-odds-api.com as of the last
+      refresh (odds move — always verify the live price on your actual sportsbook before betting). BTTS legs
+      never have real odds here since no provider in this app carries that market. This is a model-confidence
+      screening tool, not a betting recommendation or a guarantee of any kind.
+    </div>`;
 }
 
 function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = 'block'; }

@@ -28,6 +28,8 @@ import config
 import predictor as pred
 import fixtures as live_fixtures
 import tracking
+import accumulator as acca
+import odds_provider as odds
 
 app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 
@@ -124,6 +126,48 @@ def tracking_log():
     "pending" until its actual result can be fetched."""
     try:
         return tracking.get_log()
+    except Exception as e:
+        raise HTTPException(500, f"{type(e).__name__}: {e}")
+
+
+@app.get("/api/odds/soccer")
+def odds_soccer(div: str, home: str, away: str):
+    """Real best-available bookmaker odds (the-odds-api.com) for one
+    fixture, if configured (THE_ODDS_API_KEY) and the fixture is on the
+    current board. Returns null fields rather than an error when odds
+    simply aren't available - this is a best-effort lookup, not required
+    for a prediction to work."""
+    if not odds.is_configured():
+        return {"available": False, "reason": "No THE_ODDS_API_KEY configured on this server."}
+    result = odds.get_soccer_odds(div, home, away)
+    if result is None:
+        return {"available": False, "reason": "Fixture not found on the current odds board for this league."}
+    return {"available": True, **result}
+
+
+@app.get("/api/odds/basketball")
+def odds_basketball(home: str, away: str):
+    if not odds.is_configured():
+        return {"available": False, "reason": "No THE_ODDS_API_KEY configured on this server."}
+    result = odds.get_basketball_odds(home, away)
+    if result is None:
+        return {"available": False, "reason": "Fixture not found on the current odds board."}
+    return {"available": True, **result}
+
+
+@app.get("/api/accumulator")
+def accumulator(
+    legs: int = 3, min_odds: float = 5.0,
+    date_from: Optional[str] = None, date_to: Optional[str] = None,
+):
+    """Picks `legs` different fixtures' most-confident market calls and
+    returns the combination with the highest combined win probability that
+    still clears `min_odds` combined. IMPORTANT: "odds" here are
+    model-implied (1 / predicted probability), not a real bookmaker price -
+    see src/accumulator.py's module docstring."""
+    try:
+        return acca.build_accumulator(num_legs=legs, min_combined_odds=min_odds,
+                                       date_from=date_from, date_to=date_to)
     except Exception as e:
         raise HTTPException(500, f"{type(e).__name__}: {e}")
 
