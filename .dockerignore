@@ -1,6 +1,5 @@
 data/soccer/raw
 data/basketball/raw
-reports
 __pycache__
 **/__pycache__
 *.pyc

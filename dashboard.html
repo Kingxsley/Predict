@@ -202,6 +202,7 @@
 <div class="tabs">
   <div class="tab active" id="tab-live" onclick="switchMainTab('live')">Live Fixtures</div>
   <div class="tab" id="tab-custom" onclick="switchMainTab('custom')">Custom Matchup</div>
+  <div class="tab" id="tab-analytics" onclick="switchMainTab('analytics')">Analytics</div>
 </div>
 <main>
 
@@ -297,6 +298,11 @@
     </div>
   </div>
 
+  <!-- ============ ANALYTICS ============ -->
+  <div id="panel-analytics" style="display:none;">
+    <div id="analytics-content"><div class="loading"><div class="spinner"></div>Loading backtest results…</div></div>
+  </div>
+
   <div class="disclaimer">
     Model outputs are statistical estimates from historical data, not guarantees. Every league/market
     shown here was backtested against real closing odds where available (see reports/soccer_backtest.json
@@ -315,12 +321,16 @@
 const API = "";
 let LIVE_DATA = null;
 let SPORT_FILTER = 'all';
+let ANALYTICS_LOADED = false;
 
 function switchMainTab(t) {
   document.getElementById('tab-live').classList.toggle('active', t==='live');
   document.getElementById('tab-custom').classList.toggle('active', t==='custom');
+  document.getElementById('tab-analytics').classList.toggle('active', t==='analytics');
   document.getElementById('panel-live').style.display = t==='live' ? 'block' : 'none';
   document.getElementById('panel-custom').style.display = t==='custom' ? 'block' : 'none';
+  document.getElementById('panel-analytics').style.display = t==='analytics' ? 'block' : 'none';
+  if (t === 'analytics' && !ANALYTICS_LOADED) loadAnalytics();
 }
 function switchSubTab(t) {
   document.getElementById('tab-soccer').classList.toggle('active', t==='soccer');
@@ -664,6 +674,83 @@ async function runNBA() {
   html += `<div style="margin-top:16px; color:var(--dim); font-size:11.5px;">Model trained as of ${r.model_trained_as_of}</div>`;
   const box = document.getElementById('n-results');
   box.innerHTML = html; box.style.display = 'block';
+}
+
+// ---------------- ANALYTICS ----------------
+async function loadAnalytics() {
+  const box = document.getElementById('analytics-content');
+  box.innerHTML = '<div class="loading"><div class="spinner"></div>Loading backtest results…</div>';
+  try {
+    const resp = await fetch(API + '/api/analytics');
+    if (!resp.ok) throw new Error('Failed to load analytics');
+    const data = await resp.json();
+    renderAnalytics(data);
+    ANALYTICS_LOADED = true;
+  } catch (e) {
+    box.innerHTML = `<div class="error-banner">Couldn't load analytics: ${e.message}</div>`;
+  }
+}
+
+function renderAnalytics(data) {
+  const soccer = data.soccer || [];
+  const bb = data.basketball;
+  const n = soccer.length;
+  const avgModel = soccer.reduce((s,x)=>s+x.brier.blended_calibrated,0) / (n||1);
+  const avgMarket = soccer.reduce((s,x)=>s+x.brier.market,0) / (n||1);
+  const beatMarket = soccer.filter(x => x.brier.blended_calibrated < x.brier.market);
+
+  let html = `
+    <div class="section-title" style="margin-top:0;">Soccer — ${n} leagues backtested</div>
+    <div class="stat-grid" style="margin-bottom:22px;">
+      <div class="stat"><div class="label">Avg Model Brier</div><div class="val">${avgModel.toFixed(3)}</div></div>
+      <div class="stat"><div class="label">Avg Market Brier</div><div class="val">${avgMarket.toFixed(3)}</div></div>
+      <div class="stat"><div class="label">Beat the Market</div><div class="val">${beatMarket.length} / ${n} leagues</div></div>
+    </div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>League</th><th>Holdout N</th><th>Model Brier</th><th>Market Brier</th>
+        <th>Edge</th><th>Model Log-Loss</th><th>Result</th>
+      </tr></thead>
+      <tbody>`;
+
+  const rows = [...soccer].sort((a,b) =>
+    (b.brier.market - b.brier.blended_calibrated) - (a.brier.market - a.brier.blended_calibrated));
+  for (const x of rows) {
+    const edge = x.brier.market - x.brier.blended_calibrated; // positive = model beat market (lower Brier)
+    const won = edge > 0;
+    html += `<tr>
+      <td>${x.league}</td>
+      <td>${x.n_test_holdout}</td>
+      <td>${x.brier.blended_calibrated.toFixed(3)}</td>
+      <td>${x.brier.market.toFixed(3)}</td>
+      <td class="${won?'edge-pos':'edge-neg'}">${won?'+':''}${edge.toFixed(3)}</td>
+      <td>${x.log_loss.blended_calibrated.toFixed(3)}</td>
+      <td>${won ? '<span class="badge bet">BEAT MARKET</span>' : '<span class="badge pass">MARKET SHARPER</span>'}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  if (bb) {
+    html += `
+    <div class="section-title">NBA — ${bb.n_test_holdout} holdout games</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Brier (Elo + Margin Model)</div><div class="val">${bb.brier.calibrated.toFixed(3)}</div></div>
+      <div class="stat"><div class="label">Brier (Elo Only)</div><div class="val">${bb.brier.elo_only.toFixed(3)}</div></div>
+      <div class="stat"><div class="label">Margin MAE</div><div class="val">${bb.margin_mae.toFixed(1)} pts</div></div>
+      <div class="stat"><div class="label">Total Points MAE</div><div class="val">${bb.total_mae.toFixed(1)} pts</div></div>
+    </div>`;
+  }
+
+  html += `<div class="why-scope" style="margin-top:22px;">
+    Lower Brier score / log-loss is better (0 = perfect). "Market" is the de-vigged closing-odds
+    implied probability from real historical data — beating it consistently is hard, and most public
+    models don't. These are unedited backtest numbers from reports/soccer_backtest.json and
+    reports/basketball_backtest.json, generated by src/train.py against held-out historical matches —
+    not live-computed, and not adjusted to look better.
+  </div>`;
+
+  document.getElementById('analytics-content').innerHTML = html;
 }
 
 function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = 'block'; }

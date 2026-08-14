@@ -14,6 +14,7 @@ directly (e.g. for integrating into a sportsbook's own trading tools):
     GET /api/basketball/teams
     GET /api/basketball/predict?home=Celtics&away=Lakers&odds_home=1.55&odds_away=2.5
 """
+import json
 import sys
 from pathlib import Path
 
@@ -94,6 +95,24 @@ def fixtures_live(refresh: bool = False):
         return live_fixtures.get_live_fixtures(force_refresh=refresh)
     except Exception as e:
         raise HTTPException(502, f"Live fixtures fetch failed: {type(e).__name__}: {e}")
+
+
+@app.get("/api/analytics")
+def analytics():
+    """Real backtest results — unedited output of src/backtest.py via
+    src/train.py, not live-computed. Per-league Brier score/log-loss
+    (model vs. real historical closing-odds market) and a value-betting
+    ROI simulation for soccer; win-probability Brier/log-loss and margin/
+    total MAE for NBA. See README "Backtest results" for methodology."""
+    try:
+        soccer = json.loads(config.REPORTS_DIR.joinpath("soccer_backtest.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        soccer = []
+    try:
+        basketball = json.loads(config.REPORTS_DIR.joinpath("basketball_backtest.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        basketball = None
+    return {"soccer": soccer, "basketball": basketball}
 
 
 @app.get("/healthz")

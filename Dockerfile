@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY models/ ./models/
 COPY data/ ./data/
+COPY reports/ ./reports/
 COPY dashboard.html ./
 
 EXPOSE 8000
