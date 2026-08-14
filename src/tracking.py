@@ -1,9 +1,10 @@
 """
-Prediction tracking log: records every prediction made for a live fixture,
-then grades it against the real final score once the match has actually
-been played. Nothing here is simulated — grading only happens against a
-real result fetched from the same provider (football-data.org or
-TheSportsDB) that supplied the fixture in the first place.
+Prediction tracking log: records every market the model predicted for a
+live fixture (1X2/moneyline, BTTS, over/under 2.5), then grades each one
+against the real final score once the match has actually been played.
+Nothing here is simulated — grading only happens against a real result
+fetched from the same provider (football-data.org or TheSportsDB) that
+supplied the fixture in the first place.
 
 Persisted to data/prediction_log.json as a flat JSON list. This is a
 single-file, single-process log (no database) - fine for this app's scale,
@@ -58,16 +59,23 @@ def record_soccer(div: str, league: str, ev: dict, home_raw: str, away_raw: str,
     entries = _load()
     if any(e["key"] == key for e in entries):
         return
-    probs = {"H": prediction["prob_home_win"], "D": prediction["prob_draw"], "A": prediction["prob_away_win"]}
-    pick = max(probs, key=probs.get)
+
+    x12_probs = {"H": prediction["prob_home_win"], "D": prediction["prob_draw"], "A": prediction["prob_away_win"]}
+    btts_pick = "YES" if prediction["prob_btts_yes"] >= 0.5 else "NO"
+    ou_pick = "OVER" if prediction["prob_over_2_5"] >= 0.5 else "UNDER"
+
     entries.append({
         "key": key, "sport": "soccer", "div": div, "league": league,
         "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
         "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
-        "predicted_pick": pick, "predicted_probs": probs,
         "logged_at": datetime.now(timezone.utc).isoformat(),
-        "graded": False, "attempts": 0, "correct": None,
-        "actual_home_score": None, "actual_away_score": None, "actual_pick": None, "graded_at": None,
+        "markets": {
+            "1x2": {"pick": max(x12_probs, key=x12_probs.get), "probs": x12_probs},
+            "btts": {"pick": btts_pick, "probs": {"YES": prediction["prob_btts_yes"], "NO": prediction["prob_btts_no"]}},
+            "over_under_2_5": {"pick": ou_pick, "probs": {"OVER": prediction["prob_over_2_5"], "UNDER": prediction["prob_under_2_5"]}},
+        },
+        "graded": False, "attempts": 0, "graded_at": None,
+        "actual_home_score": None, "actual_away_score": None,
     })
     _save(entries)
 
@@ -79,16 +87,20 @@ def record_basketball(ev: dict, home_raw: str, away_raw: str, prediction: dict) 
     entries = _load()
     if any(e["key"] == key for e in entries):
         return
-    pick = "HOME" if prediction["prob_home_win"] >= 0.5 else "AWAY"
+
+    ml_probs = {"HOME": prediction["prob_home_win"], "AWAY": prediction["prob_away_win"]}
     entries.append({
         "key": key, "sport": "basketball", "div": None, "league": "NBA",
         "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
         "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
-        "predicted_pick": pick,
-        "predicted_probs": {"HOME": prediction["prob_home_win"], "AWAY": prediction["prob_away_win"]},
         "logged_at": datetime.now(timezone.utc).isoformat(),
-        "graded": False, "attempts": 0, "correct": None,
-        "actual_home_score": None, "actual_away_score": None, "actual_pick": None, "graded_at": None,
+        "markets": {
+            "moneyline": {"pick": max(ml_probs, key=ml_probs.get), "probs": ml_probs},
+        },
+        "predicted_margin_home": prediction.get("predicted_margin_home"),
+        "predicted_total_points": prediction.get("predicted_total_points"),
+        "graded": False, "attempts": 0, "graded_at": None,
+        "actual_home_score": None, "actual_away_score": None,
     })
     _save(entries)
 
@@ -108,20 +120,36 @@ def _fetch_thesportsdb_result(event_id: str) -> dict | None:
     return {"home_score": int(home), "away_score": int(away)}
 
 
-def _actual_pick(sport: str, home_score: int, away_score: int) -> str:
-    if sport == "basketball":
-        return "HOME" if home_score > away_score else "AWAY"
+def _grade_soccer_markets(entry: dict, home_score: int, away_score: int) -> None:
     if home_score > away_score:
-        return "H"
-    if away_score > home_score:
-        return "A"
-    return "D"
+        actual_1x2 = "H"
+    elif away_score > home_score:
+        actual_1x2 = "A"
+    else:
+        actual_1x2 = "D"
+    actual_btts = "YES" if (home_score > 0 and away_score > 0) else "NO"
+    actual_ou = "OVER" if (home_score + away_score) > 2.5 else "UNDER"
+
+    m = entry["markets"]
+    m["1x2"]["actual"] = actual_1x2
+    m["1x2"]["correct"] = (actual_1x2 == m["1x2"]["pick"])
+    m["btts"]["actual"] = actual_btts
+    m["btts"]["correct"] = (actual_btts == m["btts"]["pick"])
+    m["over_under_2_5"]["actual"] = actual_ou
+    m["over_under_2_5"]["correct"] = (actual_ou == m["over_under_2_5"]["pick"])
+
+
+def _grade_basketball_markets(entry: dict, home_score: int, away_score: int) -> None:
+    actual_ml = "HOME" if home_score > away_score else "AWAY"
+    m = entry["markets"]
+    m["moneyline"]["actual"] = actual_ml
+    m["moneyline"]["correct"] = (actual_ml == m["moneyline"]["pick"])
 
 
 def grade_pending() -> None:
     """Attempts to fetch a real final score for every ungraded entry whose
-    fixture date has passed, and grades it (correct/incorrect) against the
-    model's predicted pick. Entries with no provider id, or that fail
+    fixture date has passed, and grades each of its markets independently
+    against that real score. Entries with no provider id, or that fail
     repeatedly, are marked "unresolved" after MAX_GRADE_ATTEMPTS rather than
     retried forever."""
     entries = _load()
@@ -156,17 +184,17 @@ def grade_pending() -> None:
         entry["attempts"] = entry.get("attempts", 0) + 1
         if result is not None:
             home_score, away_score = result["home_score"], result["away_score"]
-            actual_pick = _actual_pick(entry["sport"], home_score, away_score)
             entry["actual_home_score"] = home_score
             entry["actual_away_score"] = away_score
-            entry["actual_pick"] = actual_pick
-            entry["correct"] = (actual_pick == entry["predicted_pick"])
+            if entry["sport"] == "soccer":
+                _grade_soccer_markets(entry, home_score, away_score)
+            else:
+                _grade_basketball_markets(entry, home_score, away_score)
             entry["graded"] = True
             entry["graded_at"] = datetime.now(timezone.utc).isoformat()
             changed = True
         elif entry["attempts"] >= MAX_GRADE_ATTEMPTS:
-            entry["graded"] = True
-            entry["correct"] = None  # unresolved - no result ever available, not a loss
+            entry["graded"] = True  # unresolved - no result ever available, markets stay ungraded (no "actual"/"correct")
             entry["graded_at"] = datetime.now(timezone.utc).isoformat()
             changed = True
 
@@ -176,22 +204,27 @@ def grade_pending() -> None:
 
 def get_log() -> dict:
     """Grades whatever can be graded right now, then returns the full log
-    plus a summary (overall + per-sport accuracy, most recent first)."""
+    plus a per-market accuracy summary, most recent fixture first."""
     grade_pending()
     entries = _load()
     entries.sort(key=lambda e: e.get("date") or "", reverse=True)
 
-    def _summary(subset):
-        graded = [e for e in subset if e.get("graded") and e.get("correct") is not None]
-        wins = sum(1 for e in graded if e["correct"])
-        return {"total_logged": len(subset), "graded": len(graded), "correct": wins,
+    def _market_summary(subset, market):
+        graded = [e for e in subset if "actual" in e["markets"].get(market, {})]
+        wins = sum(1 for e in graded if e["markets"][market]["correct"])
+        return {"graded": len(graded), "correct": wins,
                 "accuracy": round(wins / len(graded), 4) if graded else None}
+
+    soccer = [e for e in entries if e["sport"] == "soccer"]
+    basketball = [e for e in entries if e["sport"] == "basketball"]
 
     return {
         "entries": entries,
         "summary": {
-            "overall": _summary(entries),
-            "soccer": _summary([e for e in entries if e["sport"] == "soccer"]),
-            "basketball": _summary([e for e in entries if e["sport"] == "basketball"]),
+            "total_logged": len(entries),
+            "soccer_1x2": _market_summary(soccer, "1x2"),
+            "soccer_btts": _market_summary(soccer, "btts"),
+            "soccer_over_under": _market_summary(soccer, "over_under_2_5"),
+            "basketball_moneyline": _market_summary(basketball, "moneyline"),
         },
     }

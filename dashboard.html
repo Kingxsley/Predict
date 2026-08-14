@@ -203,6 +203,7 @@
   <div class="tab active" id="tab-live" onclick="switchMainTab('live')">Live Fixtures</div>
   <div class="tab" id="tab-custom" onclick="switchMainTab('custom')">Custom Matchup</div>
   <div class="tab" id="tab-analytics" onclick="switchMainTab('analytics')">Analytics</div>
+  <div class="tab" id="tab-log" onclick="switchMainTab('log')">Prediction Log</div>
 </div>
 <main>
 
@@ -303,6 +304,28 @@
     <div id="analytics-content"><div class="loading"><div class="spinner"></div>Loading backtest results…</div></div>
   </div>
 
+  <!-- ============ PREDICTION LOG ============ -->
+  <div id="panel-log" style="display:none;">
+    <div class="live-toolbar">
+      <div class="toolbar-controls">
+        <div class="field" style="min-width:140px;">
+          <label>From</label>
+          <input type="date" id="log-from" onchange="renderTrackingLog()">
+        </div>
+        <div class="field" style="min-width:140px;">
+          <label>To</label>
+          <input type="date" id="log-to" onchange="renderTrackingLog()">
+        </div>
+        <button class="ghost" style="align-self:flex-end;" onclick="clearLogFilter()">Clear filter</button>
+      </div>
+      <div class="toolbar-controls">
+        <button class="ghost" onclick="loadTrackingLog()">&#8635; Refresh</button>
+        <button onclick="exportLogCsv()">&#8681; Export CSV</button>
+      </div>
+    </div>
+    <div id="log-content"><div class="loading"><div class="spinner"></div>Loading prediction log…</div></div>
+  </div>
+
   <div class="disclaimer">
     Model outputs are statistical estimates from historical data, not guarantees. Every league/market
     shown here was backtested against real closing odds where available (see reports/soccer_backtest.json
@@ -322,15 +345,19 @@ const API = "";
 let LIVE_DATA = null;
 let SPORT_FILTER = 'all';
 let ANALYTICS_LOADED = false;
+let LOG_DATA = null;
 
 function switchMainTab(t) {
   document.getElementById('tab-live').classList.toggle('active', t==='live');
   document.getElementById('tab-custom').classList.toggle('active', t==='custom');
   document.getElementById('tab-analytics').classList.toggle('active', t==='analytics');
+  document.getElementById('tab-log').classList.toggle('active', t==='log');
   document.getElementById('panel-live').style.display = t==='live' ? 'block' : 'none';
   document.getElementById('panel-custom').style.display = t==='custom' ? 'block' : 'none';
   document.getElementById('panel-analytics').style.display = t==='analytics' ? 'block' : 'none';
+  document.getElementById('panel-log').style.display = t==='log' ? 'block' : 'none';
   if (t === 'analytics' && !ANALYTICS_LOADED) loadAnalytics();
+  if (t === 'log' && !LOG_DATA) loadTrackingLog();
 }
 function switchSubTab(t) {
   document.getElementById('tab-soccer').classList.toggle('active', t==='soccer');
@@ -681,66 +708,17 @@ async function loadAnalytics() {
   const box = document.getElementById('analytics-content');
   box.innerHTML = '<div class="loading"><div class="spinner"></div>Loading backtest results…</div>';
   try {
-    const [backtestResp, logResp] = await Promise.all([
-      fetch(API + '/api/analytics'),
-      fetch(API + '/api/tracking/log'),
-    ]);
-    if (!backtestResp.ok) throw new Error('Failed to load analytics');
-    const backtest = await backtestResp.json();
-    const log = logResp.ok ? await logResp.json() : null;
-    renderAnalytics(backtest, log);
+    const resp = await fetch(API + '/api/analytics');
+    if (!resp.ok) throw new Error('Failed to load analytics');
+    const backtest = await resp.json();
+    renderAnalytics(backtest);
     ANALYTICS_LOADED = true;
   } catch (e) {
     box.innerHTML = `<div class="error-banner">Couldn't load analytics: ${e.message}</div>`;
   }
 }
 
-function trackingRowsHtml(log) {
-  if (!log || !log.entries || log.entries.length === 0) {
-    return `<div class="empty-note">No predictions logged yet — the log fills in as live fixtures are viewed, and each entry grades itself once its match has actually been played.</div>`;
-  }
-  const s = log.summary;
-  const acc = x => x.accuracy === null ? '—' : pct(x.accuracy);
-  let html = `<div class="stat-grid" style="margin-bottom:22px;">
-    <div class="stat"><div class="label">Overall Accuracy</div><div class="val">${acc(s.overall)} <span style="font-size:11px;color:var(--dim);font-weight:500;">(${s.overall.correct}/${s.overall.graded} graded)</span></div></div>
-    <div class="stat"><div class="label">Soccer Accuracy</div><div class="val">${acc(s.soccer)} <span style="font-size:11px;color:var(--dim);font-weight:500;">(${s.soccer.correct}/${s.soccer.graded})</span></div></div>
-    <div class="stat"><div class="label">Basketball Accuracy</div><div class="val">${acc(s.basketball)} <span style="font-size:11px;color:var(--dim);font-weight:500;">(${s.basketball.correct}/${s.basketball.graded})</span></div></div>
-    <div class="stat"><div class="label">Total Logged</div><div class="val">${s.overall.total_logged}</div></div>
-  </div>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>Date</th><th>League</th><th>Fixture</th><th>Predicted</th><th>Actual</th><th>Result</th></tr></thead>
-    <tbody>`;
-  const pickLabel = (e, side) => {
-    if (e.sport === 'basketball') return side === 'HOME' ? e.home : side === 'AWAY' ? e.away : side;
-    return side === 'H' ? e.home : side === 'A' ? e.away : side === 'D' ? 'Draw' : side;
-  };
-  for (const e of log.entries) {
-    let resultCell, actualCell;
-    if (!e.graded) {
-      resultCell = '<span class="badge pass">PENDING</span>';
-      actualCell = '—';
-    } else if (e.correct === null) {
-      resultCell = '<span class="badge pass">UNRESOLVED</span>';
-      actualCell = '—';
-    } else {
-      resultCell = e.correct ? '<span class="badge bet">CORRECT</span>' : '<span class="badge" style="background:var(--neg-bg);color:var(--neg);">WRONG</span>';
-      actualCell = `${e.actual_home_score}-${e.actual_away_score} (${pickLabel(e,e.actual_pick)})`;
-    }
-    html += `<tr>
-      <td>${e.date || ''}</td>
-      <td>${e.league}</td>
-      <td>${e.home} vs ${e.away}</td>
-      <td>${pickLabel(e, e.predicted_pick)}</td>
-      <td>${actualCell}</td>
-      <td>${resultCell}</td>
-    </tr>`;
-  }
-  html += `</tbody></table></div>`;
-  return html;
-}
-
-function renderAnalytics(data, log) {
+function renderAnalytics(data) {
   const soccer = data.soccer || [];
   const bb = data.basketball;
   const n = soccer.length;
@@ -799,16 +777,164 @@ function renderAnalytics(data, log) {
     not live-computed, and not adjusted to look better.
   </div>`;
 
-  html += `<div class="section-title">Live Prediction Log</div>` + trackingRowsHtml(log);
-  html += `<div class="why-scope" style="margin-top:12px;">
-    Every prediction shown on the Live Fixtures tab gets logged here once. A fixture stays "Pending"
-    until the day after it's scheduled, then this checks the same provider that supplied the fixture
-    (football-data.org or TheSportsDB) for the real final score — "Correct"/"Wrong" is graded against
-    that, not simulated. "Unresolved" means no result could be fetched after repeated tries (e.g. a
-    postponed or cancelled match). This log resets if the app is redeployed without a persistent volume.
+  document.getElementById('analytics-content').innerHTML = html;
+}
+
+// ---------------- PREDICTION LOG ----------------
+async function loadTrackingLog() {
+  const box = document.getElementById('log-content');
+  box.innerHTML = '<div class="loading"><div class="spinner"></div>Loading prediction log…</div>';
+  try {
+    const resp = await fetch(API + '/api/tracking/log');
+    if (!resp.ok) throw new Error('Failed to load prediction log');
+    LOG_DATA = await resp.json();
+    renderTrackingLog();
+  } catch (e) {
+    LOG_DATA = null;
+    box.innerHTML = `<div class="error-banner">Couldn't load prediction log: ${e.message}</div>`;
+  }
+}
+
+function clearLogFilter() {
+  document.getElementById('log-from').value = '';
+  document.getElementById('log-to').value = '';
+  renderTrackingLog();
+}
+
+function filteredLogEntries() {
+  if (!LOG_DATA) return [];
+  const from = document.getElementById('log-from').value;
+  const to = document.getElementById('log-to').value;
+  return LOG_DATA.entries.filter(e => {
+    if (!e.date) return true;
+    if (from && e.date < from) return false;
+    if (to && e.date > to) return false;
+    return true;
+  });
+}
+
+function pickLabel(entry, marketKey, pick) {
+  if (marketKey === '1x2') return pick === 'H' ? entry.home : pick === 'A' ? entry.away : 'Draw';
+  if (marketKey === 'moneyline') return pick === 'HOME' ? entry.home : entry.away;
+  if (marketKey === 'over_under_2_5') return pick === 'OVER' ? 'Over 2.5' : 'Under 2.5';
+  return pick; // btts: YES/NO already readable
+}
+
+function marketCell(entry, marketKey) {
+  const m = entry.markets[marketKey];
+  if (!m) return '<span style="color:var(--dim);">—</span>';
+  const label = pickLabel(entry, marketKey, m.pick);
+  const prob = m.probs[m.pick];
+  const probStr = prob !== undefined ? ` <span style="color:var(--dim);">(${pct(prob)})</span>` : '';
+  if (!('actual' in m)) return `${label}${probStr}`;
+  const icon = m.correct
+    ? '<span style="color:var(--pos); font-weight:800;"> ✓</span>'
+    : '<span style="color:var(--neg); font-weight:800;"> ✗</span>';
+  return `${label}${probStr}${icon}`;
+}
+
+function rowStatus(entry) {
+  if (!entry.graded) return '<span class="badge pass">PENDING</span>';
+  const anyGraded = Object.values(entry.markets).some(m => 'actual' in m);
+  return anyGraded ? '<span class="badge bet">GRADED</span>' : '<span class="badge pass">UNRESOLVED</span>';
+}
+
+function renderTrackingLog() {
+  const box = document.getElementById('log-content');
+  if (!LOG_DATA) { box.innerHTML = '<div class="empty-note">No data.</div>'; return; }
+  const entries = filteredLogEntries();
+  const s = LOG_DATA.summary;
+  const acc = x => x.accuracy === null ? '—' : `${pct(x.accuracy)} <span style="font-size:11px;color:var(--dim);font-weight:500;">(${x.correct}/${x.graded})</span>`;
+  const moneylineGraded = s.soccer_1x2.graded + s.basketball_moneyline.graded;
+  const moneylineCorrect = s.soccer_1x2.correct + s.basketball_moneyline.correct;
+  const moneylineCombined = {
+    graded: moneylineGraded, correct: moneylineCorrect,
+    accuracy: moneylineGraded ? moneylineCorrect / moneylineGraded : null,
+  };
+
+  let html = `<div class="stat-grid" style="margin-bottom:20px;">
+    <div class="stat"><div class="label">1X2 / Moneyline Accuracy</div><div class="val">${acc(moneylineCombined)}</div></div>
+    <div class="stat"><div class="label">BTTS Accuracy</div><div class="val">${acc(s.soccer_btts)}</div></div>
+    <div class="stat"><div class="label">Over/Under 2.5 Accuracy</div><div class="val">${acc(s.soccer_over_under)}</div></div>
+    <div class="stat"><div class="label">Total Logged</div><div class="val">${s.total_logged} <span style="font-size:11px;color:var(--dim);font-weight:500;">(${entries.length} shown)</span></div></div>
   </div>`;
 
-  document.getElementById('analytics-content').innerHTML = html;
+  if (entries.length === 0) {
+    html += `<div class="empty-note">${LOG_DATA.entries.length === 0 ? 'No predictions logged yet — this fills in as live fixtures are viewed, and each entry grades itself once its match has actually been played.' : 'No entries in the selected date range.'}</div>`;
+  } else {
+    html += `<div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th>Date</th><th>League</th><th>Fixture</th><th>1X2 / Moneyline</th><th>BTTS</th><th>Over/Under 2.5</th><th>Status</th></tr></thead>
+      <tbody>`;
+    for (const e of entries) {
+      const mainMarket = e.sport === 'basketball' ? 'moneyline' : '1x2';
+      html += `<tr>
+        <td>${e.date || ''}</td>
+        <td>${e.league}</td>
+        <td>${e.home} vs ${e.away}</td>
+        <td>${marketCell(e, mainMarket)}</td>
+        <td>${marketCell(e, 'btts')}</td>
+        <td>${marketCell(e, 'over_under_2_5')}</td>
+        <td>${rowStatus(e)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  html += `<div class="why-scope" style="margin-top:16px;">
+    Every prediction shown on the Live Fixtures tab gets logged here once, across every market the model
+    outputs (1X2/moneyline, BTTS, over/under 2.5 for soccer). A fixture stays "Pending" until the day
+    after it's scheduled, then this checks the same provider that supplied the fixture (football-data.org
+    or TheSportsDB) for the real final score, and grades each market independently against it — nothing
+    simulated. "Unresolved" means no result could ever be fetched (e.g. a postponed or cancelled match).
+    This log resets if the app is redeployed without a persistent volume.
+  </div>`;
+
+  box.innerHTML = html;
+}
+
+function csvField(v) {
+  const s = (v === null || v === undefined) ? '' : String(v);
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportLogCsv() {
+  const entries = filteredLogEntries();
+  if (entries.length === 0) return;
+  const headers = ['date','sport','league','home','away',
+    '1x2_pick','1x2_prob','1x2_actual','1x2_correct',
+    'btts_pick','btts_prob','btts_actual','btts_correct',
+    'over_under_2_5_pick','over_under_2_5_prob','over_under_2_5_actual','over_under_2_5_correct',
+    'moneyline_pick','moneyline_prob','moneyline_actual','moneyline_correct',
+    'actual_home_score','actual_away_score','status'];
+  const marketFields = (e, key) => {
+    const m = e.markets[key];
+    if (!m) return ['', '', '', ''];
+    const prob = m.probs ? m.probs[m.pick] : undefined;
+    return [m.pick, prob !== undefined ? prob.toFixed(4) : '', m.actual ?? '', 'actual' in m ? m.correct : ''];
+  };
+  const lines = [headers.join(',')];
+  for (const e of entries) {
+    const status = !e.graded ? 'PENDING' : (Object.values(e.markets).some(m => 'actual' in m) ? 'GRADED' : 'UNRESOLVED');
+    const row = [
+      e.date, e.sport, e.league, e.home, e.away,
+      ...marketFields(e, '1x2'),
+      ...marketFields(e, 'btts'),
+      ...marketFields(e, 'over_under_2_5'),
+      ...marketFields(e, 'moneyline'),
+      e.actual_home_score ?? '', e.actual_away_score ?? '', status,
+    ];
+    lines.push(row.map(csvField).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `prediction_log_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = 'block'; }
