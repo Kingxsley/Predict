@@ -45,6 +45,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 import predictor as pred
+import football_data as fd
 
 THESPORTSDB_KEY = "3"  # shared free "test" key; swap for a paid key via env var for higher limits
 BASE = f"https://www.thesportsdb.com/api/v1/json/{THESPORTSDB_KEY}"
@@ -112,17 +113,29 @@ def resolve_league_ids(force_refresh: bool = False) -> dict:
 
     resolved = {}
     claimed_ids = set()  # hard guard: never let two divisions resolve to the same league ID
-    for div in pred.list_soccer_leagues():
-        our_name = config.SOCCER_LEAGUES.get(div, div)
-        # try the seed hint first, but only if it actually appears in the
-        # fetched list under a plausible name (defends against a stale/
-        # wrong guessed ID silently pointing at the wrong league)
+    divs = pred.list_soccer_leagues()
+
+    # Pass 1: claim every valid seed hint FIRST, across all divisions,
+    # before any fuzzy fallback runs. Doing hints and fuzzy fallback in a
+    # single per-division pass let a division with no real match on this
+    # provider's list (which only carries ~10 leagues) fuzzy-steal an ID
+    # that rightfully belonged to a division processed later — e.g. "BRA"
+    # grabbing Italian Serie A's ID before "I1" got a chance to claim its
+    # own correct hint. Resolving hints first removes that race.
+    for div in divs:
         hint_id = SEED_LEAGUE_ID_HINTS.get(div)
         hint_valid = hint_id and any(l["idLeague"] == hint_id for l in soccer_leagues) and hint_id not in claimed_ids
         if hint_valid:
             resolved[div] = hint_id
             claimed_ids.add(hint_id)
+
+    # Pass 2: fuzzy-match whatever's left against whatever IDs are still
+    # unclaimed. Any division with no real counterpart on this provider
+    # correctly ends up unresolved here instead of stealing someone else's ID.
+    for div in divs:
+        if div in resolved:
             continue
+        our_name = config.SOCCER_LEAGUES.get(div, div)
         # Try the FULL name first (e.g. "Italy - Serie A") — this is what
         # disambiguates "Serie A" (Italy) from "Serie A" (Brazil), since a
         # bare competition suffix alone is often shared across countries.
@@ -169,8 +182,16 @@ def _fuzzy_team_match(name: str, known_teams: list[str]) -> str:
     norm_map = {_normalize(t): t for t in known_teams}
     if _normalize(name) in norm_map:
         return norm_map[_normalize(name)]
-    match = difflib.get_close_matches(_normalize(name), list(norm_map.keys()), n=1, cutoff=0.55)
-    return norm_map[match[0]] if match else name  # fall back to raw name (predictor handles unseen teams)
+    # 0.7 cutoff: loose enough to catch real spelling/suffix variants
+    # ("Fluminense FC" -> "Fluminense", ratio .91) but tight enough to
+    # reject two different real clubs with superficially similar names
+    # ("CA Paranaense" -> "Parana", ratio .67 — a different club entirely).
+    # A wrong-but-confident match is worse than no match: it would silently
+    # run the prediction, H2H, and form rationale for the wrong team under
+    # the right team's name. Falling back to the raw (unmatched) name is
+    # the honest outcome here — predictor.py handles unseen teams already.
+    match = difflib.get_close_matches(_normalize(name), list(norm_map.keys()), n=1, cutoff=0.7)
+    return norm_map[match[0]] if match else name
 
 
 def get_live_fixtures(force_refresh: bool = False) -> dict:
@@ -186,13 +207,37 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
     result = {"soccer": {}, "basketball": {"league": "NBA", "fixtures": []}, "errors": []}
 
     for div in pred.list_soccer_leagues():
-        league_id = league_ids.get(div)
         league_name = config.SOCCER_LEAGUES.get(div, div)
-        if not league_id:
-            result["errors"].append(f"{div}: no TheSportsDB league ID resolved")
-            continue
+
+        # Prefer football-data.org where it covers this division — real
+        # current-season data with no ID-guessing needed. Falls back to
+        # TheSportsDB (a different, mostly non-overlapping set of leagues)
+        # if football-data.org isn't configured, doesn't cover this
+        # division, or the request fails.
+        events, provider_error = None, None
+        if fd.is_configured() and div in fd.DIV_TO_FD_CODE:
+            try:
+                events = fd.fetch_upcoming_events(div)
+            except Exception as e:
+                provider_error = f"football-data.org fetch failed ({type(e).__name__}: {e})"
+                events = None
+
+        if events is None:
+            league_id = league_ids.get(div)
+            if not league_id:
+                result["errors"].append(f"{div}: no live-fixtures source available"
+                                         + (f" (football-data.org: {provider_error})" if provider_error else ""))
+                continue
+            try:
+                events = fetch_upcoming_events(league_id)
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                result["errors"].append(f"{div}: fetch failed ({type(e).__name__}: {e})")
+                continue
+            except Exception as e:
+                result["errors"].append(f"{div}: unexpected error ({type(e).__name__}: {e})")
+                continue
+
         try:
-            events = fetch_upcoming_events(league_id)
             known_teams = pred.list_soccer_teams(div)
             fixtures = []
             for ev in events:

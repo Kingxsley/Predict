@@ -20,6 +20,7 @@ import config
 from elo import EloEngine
 from ensemble import blend_probs, _logit
 from basketball_model import predict_future_game, FEATURE_COLS
+import rationale as rat
 
 
 @lru_cache(maxsize=64)
@@ -105,6 +106,12 @@ def predict_soccer(div: str, home: str, away: str,
         "elo_away": elo.get(away),
     }
 
+    try:
+        result["rationale"] = rat.build_soccer_rationale(div, home, away, result)
+    except Exception as e:
+        result["rationale"] = {"narrative": [], "data_scope": rat.DATA_SCOPE_NOTE,
+                                "error": f"{type(e).__name__}: {e}"}
+
     odds = {"H": odds_home, "D": odds_draw, "A": odds_away}
     probs_map = {"H": final[0], "D": final[1], "A": final[2]}
     edges = {}
@@ -153,6 +160,12 @@ def predict_basketball(home: str, away: str, game_date: str = None,
         "elo_home": elo.get(home),
         "elo_away": elo.get(away),
     }
+
+    try:
+        result["rationale"] = rat.build_basketball_rationale(home, away, result)
+    except Exception as e:
+        result["rationale"] = {"narrative": [], "data_scope": rat.DATA_SCOPE_NOTE,
+                                "error": f"{type(e).__name__}: {e}"}
 
     odds = {"H": odds_home, "A": odds_away}
     probs_map = {"H": p_home, "A": 1 - p_home}

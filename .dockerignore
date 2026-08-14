@@ -1,6 +1,5 @@
 data/soccer/raw
 data/basketball/raw
-data/**/*.parquet
 reports
 __pycache__
 **/__pycache__

@@ -4,5 +4,6 @@ __pycache__/
 venv/
 data/soccer/raw/
 data/basketball/raw/
+data/league_id_map.json
 *.zip
 .DS_Store

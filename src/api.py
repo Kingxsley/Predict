@@ -80,7 +80,7 @@ def basketball_predict(
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
     html_path = Path(__file__).resolve().parent.parent / "dashboard.html"
-    return HTMLResponse(html_path.read_text())
+    return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
 
 @app.get("/api/fixtures/live")

@@ -6,12 +6,15 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Only what's needed to SERVE predictions: trained model artifacts +
-# inference code + dashboard. Raw/processed data and the training scripts
-# aren't needed at runtime (models/*.pkl are self-contained), which keeps
-# the image small and the container stateless.
+# What's needed to SERVE predictions: trained model artifacts + inference
+# code + dashboard, plus the processed (cleaned) historical data — used at
+# request time for real head-to-head/recent-form rationale, not for
+# training. Raw source CSVs and the training scripts aren't needed at
+# runtime and stay out via .dockerignore; the processed parquet files are
+# ~10MB combined, small enough to keep the image lean.
 COPY src/ ./src/
 COPY models/ ./models/
+COPY data/ ./data/
 COPY dashboard.html ./
 
 EXPOSE 8000
