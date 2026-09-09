@@ -1,0 +1,56 @@
+{
+  "n_train": 2447,
+  "n_test_holdout": 645,
+  "train_seasons": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+  ],
+  "test_seasons": [
+    2024,
+    2025,
+    2026
+  ],
+  "n_draws_in_holdout": 7,
+  "win_probability": {
+    "elo_only": {
+      "brier": 0.19851314452785862,
+      "log_loss": 0.5733882974401292
+    },
+    "margin_model": {
+      "brier": 0.1957695689413794,
+      "log_loss": 0.5721385821356355
+    },
+    "blended": {
+      "brier": 0.19430431491105446,
+      "log_loss": 0.5665158429598582
+    }
+  },
+  "margin_mae": 27.14218802118833,
+  "total_mae": 22.62944898974988,
+  "margin_residual_std": 30.38041816935584,
+  "total_line": 169.5,
+  "total_over_under": {
+    "brier": 0.2464287110010532,
+    "accuracy": 0.5813953488372093,
+    "actual_over_rate": 0.524031007751938
+  },
+  "baselines": {
+    "always_home_accuracy": 0.5768025078369906,
+    "home_win_rate_holdout": 0.5768025078369906,
+    "mean_margin_mae": 31.744213290756278,
+    "mean_total_mae": 23.418427880366085
+  },
+  "model_accuracy": 0.6896551724137931,
+  "trained_as_of": "2026-09-05",
+  "teams": 18
+}

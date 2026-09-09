@@ -2,12 +2,13 @@
 Generic Elo rating engine with margin-of-victory scaling, home advantage,
 and season-boundary regression to the mean. Used standalone for a fast
 sanity-check model, and as an input feature to the sharper sport-specific
-models (Dixon-Coles for soccer, gradient-boosted margin model for NBA).
+models (Dixon-Coles for soccer, gradient-boosted margin model for the AFL).
 
-Soccer uses a 3-outcome (draw-aware) variant; basketball has no draws so
-uses the classic win/margin formulation (in the style of FiveThirtyEight's
-NBA Elo, an approach that has held up well in the public sports-analytics
-literature for producing well-calibrated win probabilities cheaply).
+Soccer uses a 3-outcome (draw-aware) variant. The AFL uses the classic
+win/margin formulation, in the style of FiveThirtyEight's NBA Elo: draws are
+rare enough (0.8% of matches) that folding them into the rating update is not
+worth the complexity, though they ARE modelled explicitly at prediction time
+from the margin distribution.
 """
 from __future__ import annotations
 
@@ -42,7 +43,7 @@ class EloEngine:
         self._last_season[team] = season
 
     def win_probs_no_draw(self, home: str, away: str) -> float:
-        """P(home win), basketball-style (no draw outcome)."""
+        """P(home win) ignoring draws, for margin-scored sports."""
         rh = self.get(home) + self.home_adv
         ra = self.get(away)
         return expected_score(rh, ra)
@@ -50,7 +51,7 @@ class EloEngine:
     def update_no_draw(self, home: str, away: str, home_margin: float,
                         mov_mult_a: float = 2.2, mov_mult_b: float = 0.001,
                         season=None) -> tuple[float, float]:
-        """Update ratings after a game with no draw possible (basketball).
+        """Update ratings from a scoreline margin (AFL, and any margin sport).
         Uses a margin-of-victory multiplier so a 30pt blowout moves ratings
         more than a 1pt nail-biter, damped by rating gap so upsets by a
         big margin aren't over-rewarded/punished.
@@ -63,7 +64,7 @@ class EloEngine:
         elo_diff = (rh + self.home_adv) - ra
         if home_margin < 0:
             elo_diff = -elo_diff
-        # FiveThirtyEight NBA formula: ln(|margin|+1) * (2.2 / (0.001*elo_diff + 2.2))
+        # FiveThirtyEight's margin-of-victory formula: ln(|margin|+1) * (2.2 / (0.001*elo_diff + 2.2))
         mult = math.log(abs(home_margin) + 1) * (mov_mult_a / (mov_mult_b * elo_diff + mov_mult_a))
         mult = max(mult, 0.1)
         delta = self.k * mult * (actual_home - p_home)

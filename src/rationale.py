@@ -28,10 +28,11 @@ _SCOPE_TAIL = (
     "integrated in this build, so none of that is guessed at here."
 )
 # Kept per-sport because the models genuinely differ — quoting the goal model
-# on an NBA card would be describing something that never ran.
+# on an AFL card would be describing something that never ran.
 DATA_SCOPE_NOTE = "Built from Elo ratings, the Dixon-Coles goal model," + _SCOPE_TAIL
-DATA_SCOPE_NOTE_BASKETBALL = (
-    "Built from Elo ratings, the gradient-boosted margin/total model," + _SCOPE_TAIL
+DATA_SCOPE_NOTE_AFL = (
+    "Built from Elo ratings, a gradient-boosted margin/total model, and each "
+    "side's recent record at this venue," + _SCOPE_TAIL
 )
 
 
@@ -43,8 +44,8 @@ def _soccer_by_div() -> dict:
 
 
 @lru_cache(maxsize=1)
-def _basketball_sorted() -> pd.DataFrame:
-    df = pd.read_parquet(config.BASKETBALL_PROCESSED)
+def _afl_sorted() -> pd.DataFrame:
+    df = pd.read_parquet(config.AFL_PROCESSED)
     return df.sort_values("date", ascending=False).reset_index(drop=True)
 
 
@@ -163,16 +164,22 @@ def build_soccer_rationale(div: str, home: str, away: str, prediction: dict) -> 
     }
 
 
-# ---------------- Basketball (NBA) ----------------
 
-def basketball_h2h(home: str, away: str, n: int = 5) -> dict:
-    df = _basketball_sorted()
+# ---------------- AFL ----------------
+
+def afl_h2h(home: str, away: str, n: int = 5) -> dict:
+    df = _afl_sorted()
     mask = ((df["home_name"] == home) & (df["away_name"] == away)) | \
            ((df["home_name"] == away) & (df["away_name"] == home))
     subset = df[mask].head(n)
-    meetings, home_wins, away_wins = [], 0, 0
+    meetings, home_wins, away_wins, draws = [], 0, 0, 0
     for _, row in subset.iterrows():
-        winner = row["home_name"] if row["home_win"] == 1 else row["away_name"]
+        margin = row["home_score"] - row["away_score"]
+        if margin == 0:
+            draws += 1
+            winner = None
+        else:
+            winner = row["home_name"] if margin > 0 else row["away_name"]
         if winner == home:
             home_wins += 1
         elif winner == away:
@@ -181,70 +188,124 @@ def basketball_h2h(home: str, away: str, n: int = 5) -> dict:
             "date": _fmt_date(row["date"]),
             "home_team": row["home_name"],
             "away_team": row["away_name"],
-            "score": f"{int(row['home_score'])}-{int(row['away_score'])}" if pd.notna(row["home_score"]) else None,
+            "score": f"{int(row['home_score'])}-{int(row['away_score'])}",
+            "venue": row["venue"],
         })
-    return {"meetings": meetings, "home_wins": home_wins, "away_wins": away_wins}
+    return {"meetings": meetings, "home_wins": home_wins,
+            "away_wins": away_wins, "draws": draws}
 
 
-def basketball_form(team: str, n: int = 5) -> dict:
-    df = _basketball_sorted()
+def afl_form(team: str, n: int = 5) -> dict:
+    df = _afl_sorted()
     mask = (df["home_name"] == team) | (df["away_name"] == team)
     subset = df[mask].head(n)
-    letters, wins, losses, point_diff = [], 0, 0, 0
+    letters, wins, losses, draws, point_diff = [], 0, 0, 0, 0
     for _, row in subset.iterrows():
         is_home = row["home_name"] == team
-        won = (row["home_win"] == 1) if is_home else (row["home_win"] == 0)
-        diff = (row["margin"] if is_home else -row["margin"])
-        point_diff += diff if pd.notna(diff) else 0
-        if won:
+        diff = (row["home_score"] - row["away_score"]) * (1 if is_home else -1)
+        point_diff += diff
+        if diff > 0:
             letters.append("W"); wins += 1
-        else:
+        elif diff < 0:
             letters.append("L"); losses += 1
-    return {"results": "-".join(letters), "wins": wins, "losses": losses,
+        else:
+            letters.append("D"); draws += 1
+    return {"results": "-".join(letters), "wins": wins, "losses": losses, "draws": draws,
             "avg_point_diff": round(point_diff / len(letters), 1) if letters else 0.0}
 
 
-def build_basketball_rationale(home: str, away: str, prediction: dict) -> dict:
+def afl_venue_record(team: str, venue: str, n: int = 8) -> dict:
+    """How the side has actually gone at this specific ground recently. In
+    the AFL this carries real signal beyond generic home advantage, because
+    interstate visitors and clubs relocated to a 'home' ground they rarely
+    use are materially worse off than the fixture label suggests."""
+    if not venue:
+        return {"played": 0}
+    df = _afl_sorted()
+    mask = ((df["home_name"] == team) | (df["away_name"] == team)) & (df["venue"] == venue)
+    subset = df[mask].head(n)
+    if subset.empty:
+        return {"played": 0}
+    wins, diff = 0, 0
+    for _, row in subset.iterrows():
+        is_home = row["home_name"] == team
+        margin = (row["home_score"] - row["away_score"]) * (1 if is_home else -1)
+        diff += margin
+        if margin > 0:
+            wins += 1
+    return {"played": len(subset), "wins": wins,
+            "avg_margin": round(diff / len(subset), 1)}
+
+
+def build_afl_rationale(home: str, away: str, prediction: dict) -> dict:
     elo_home, elo_away = prediction["elo_home"], prediction["elo_away"]
     gap = elo_home - elo_away
-    home_form = basketball_form(home)
-    away_form = basketball_form(away)
-    h2h = basketball_h2h(home, away)
+    venue = prediction.get("venue")
+    home_form, away_form = afl_form(home), afl_form(away)
+    h2h = afl_h2h(home, away)
+    home_venue = afl_venue_record(home, venue)
+    away_venue = afl_venue_record(away, venue)
 
     bullets = []
 
     if abs(gap) >= 40:
         stronger, weaker, g = (home, away, gap) if gap > 0 else (away, home, -gap)
-        bullets.append(f"{stronger} rated {g:.0f} Elo points higher than {weaker} ({round(elo_home)} vs {round(elo_away)}) — a clear strength edge by rating.")
+        bullets.append(f"{stronger} rated {g:.0f} Elo points above {weaker} "
+                       f"({round(elo_home)} vs {round(elo_away)}), a clear edge on rating.")
     else:
-        bullets.append(f"Elo ratings are close ({round(elo_home)} vs {round(elo_away)}) — a fairly even matchup by team strength.")
+        bullets.append(f"Elo ratings are close ({round(elo_home)} vs {round(elo_away)}), "
+                       f"an evenly matched game on team strength.")
 
-    if home_form["results"]:
-        bullets.append(f"{home} — last {len(home_form['results'].split('-'))} results: {home_form['results']} "
-                        f"({home_form['wins']}W-{home_form['losses']}L, avg point diff {home_form['avg_point_diff']:+.1f}).")
-    if away_form["results"]:
-        bullets.append(f"{away} — last {len(away_form['results'].split('-'))} results: {away_form['results']} "
-                        f"({away_form['wins']}W-{away_form['losses']}L, avg point diff {away_form['avg_point_diff']:+.1f}).")
+    for team, form in ((home, home_form), (away, away_form)):
+        if form["results"]:
+            record = f"{form['wins']}W-{form['losses']}L"
+            if form["draws"]:
+                record += f"-{form['draws']}D"
+            bullets.append(f"{team}: last {len(form['results'].split('-'))} results "
+                           f"{form['results']} ({record}, average margin "
+                           f"{form['avg_point_diff']:+.1f}).")
+
+    # The venue line is the AFL-specific one, and only worth printing when
+    # there is a real disparity in how familiar the ground is.
+    if venue:
+        h_exp = prediction.get("home_venue_experience", 0)
+        a_exp = prediction.get("away_venue_experience", 0)
+        if home_venue["played"] and away_venue["played"]:
+            bullets.append(
+                f"At {venue}: {home} {home_venue['wins']}/{home_venue['played']} recent wins "
+                f"(avg {home_venue['avg_margin']:+.1f}), {away} {away_venue['wins']}/"
+                f"{away_venue['played']} (avg {away_venue['avg_margin']:+.1f}).")
+        elif h_exp or a_exp:
+            bullets.append(
+                f"{home} has played {h_exp:.0f} game(s) at {venue} in the last three years "
+                f"against {away}'s {a_exp:.0f}, so this is "
+                f"{'familiar ground for the home side' if h_exp > a_exp + 2 else 'not a strong venue edge either way'}.")
 
     if h2h["meetings"]:
-        total = h2h["home_wins"] + h2h["away_wins"]
+        total = h2h["home_wins"] + h2h["away_wins"] + h2h["draws"]
         last = h2h["meetings"][0]
+        drawn = f", {h2h['draws']} drawn" if h2h["draws"] else ""
         bullets.append(f"Head-to-head, last {total} meeting{'s' if total != 1 else ''}: "
-                        f"{home} won {h2h['home_wins']}, {away} won {h2h['away_wins']} "
-                        f"— most recent was {last['home_team']} {last['score']} {last['away_team']} on {last['date']}.")
+                       f"{home} {h2h['home_wins']}, {away} {h2h['away_wins']}{drawn}. "
+                       f"Most recent: {last['home_team']} {last['score']} {last['away_team']} "
+                       f"on {last['date']}.")
     else:
-        bullets.append(f"No previous {home} vs {away} meetings found in our historical data.")
+        bullets.append(f"No previous {home} v {away} meetings in the dataset.")
 
     margin = prediction["predicted_margin_home"]
     total_pts = prediction["predicted_total_points"]
     favored = home if margin > 0 else away
-    bullets.append(f"Model projects {favored} to win by {abs(margin):.1f}, with a total near {total_pts:.0f} points.")
+    bullets.append(f"Model projects {favored} by {abs(margin):.0f} points, "
+                   f"with a combined total near {total_pts:.0f} "
+                   f"(line {prediction.get('total_line', 169.5)}).")
 
     return {
         "elo_gap": round(gap, 1),
         "home_form": home_form,
         "away_form": away_form,
         "h2h": h2h,
+        "home_venue_record": home_venue,
+        "away_venue_record": away_venue,
         "narrative": bullets,
-        "data_scope": DATA_SCOPE_NOTE_BASKETBALL,
+        "data_scope": DATA_SCOPE_NOTE_AFL,
     }

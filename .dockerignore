@@ -1,7 +1,7 @@
 data/soccer/raw
-data/basketball/raw
 __pycache__
 **/__pycache__
 *.pyc
 .git
 sports_predictor.zip
+data/http_cache

@@ -1,9 +1,9 @@
 """
 Shared prediction layer: loads trained artifacts from models/ and exposes
-simple predict_soccer() / predict_basketball() functions used by both the
-CLI and the local API/dashboard. Also has the edge/Kelly-stake utility a
-sportsbook actually cares about: given our probability and the market's
-price, is there value, and how much should be staked.
+predict_soccer() / predict_afl() for both the CLI and the API/dashboard.
+Also has the edge/Kelly-stake utility a sportsbook actually cares about:
+given our probability and the market's price, is there value, and how much
+should be staked.
 """
 from __future__ import annotations
 
@@ -13,13 +13,12 @@ from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import afl_model
 import config
 from elo import EloEngine
-from ensemble import blend_probs, _logit
-from basketball_model import predict_future_game, FEATURE_COLS
+from ensemble import blend_probs
 import rationale as rat
 
 
@@ -36,11 +35,12 @@ def load_soccer_artifact(div: str):
 
 
 @lru_cache(maxsize=1)
-def load_basketball_artifact():
-    path = config.MODELS_DIR / "basketball" / "nba_model.pkl"
-    if not path.exists():
-        raise FileNotFoundError("No trained NBA model found. Run src/train.py first.")
-    with open(path, "rb") as f:
+def load_afl_model():
+    if not config.AFL_MODEL_PATH.exists():
+        raise FileNotFoundError(
+            "No trained AFL model found. Run: python3 src/ingest_afl.py && python3 src/train_afl.py"
+        )
+    with open(config.AFL_MODEL_PATH, "rb") as f:
         return pickle.load(f)
 
 
@@ -123,56 +123,47 @@ def predict_soccer(div: str, home: str, away: str,
     return result
 
 
-def predict_basketball(home: str, away: str, game_date: str = None,
-                        is_playoffs: bool = False, neutral_site: bool = False,
-                        odds_home: float = None, odds_away: float = None) -> dict:
-    art = load_basketball_artifact()
-    model = art["model"]
-    elo = EloEngine(k=config.NBA_ELO_K, home_adv=config.NBA_ELO_HOME_ADV,
-                     season_regression=config.SEASON_REGRESSION)
-    elo.ratings = dict(art["elo_ratings"])
-    snapshot = art["snapshot"]
-
-    if game_date is None:
-        game_date = pd.Timestamp.now().normalize()
-    else:
-        game_date = pd.Timestamp(game_date)
-
-    pred = predict_future_game(
-        model, elo, snapshot, home, away, game_date,
-        is_playoffs=float(is_playoffs), neutral_site=float(neutral_site),
-    )
-
-    p_home = pred["p_home_win"]
-    win_cal = art.get("win_calibrator")
-    if win_cal is not None:
-        p_home = float(win_cal.predict_proba(_logit(np.array([p_home])).reshape(-1, 1))[0, 1])
+def predict_afl(home: str, away: str, venue: str = None, game_date: str = None,
+                 is_final: bool = False, neutral: bool = False,
+                 odds_home: float = None, odds_away: float = None) -> dict:
+    model = load_afl_model()
+    row = afl_model.feature_row_for_fixture(
+        model, home, away, venue, game_date, is_final=is_final, neutral=neutral)
+    pred = model.predict_row(row)
 
     result = {
+        "sport": "afl",
+        "league": "AFL",
         "home_team": home,
         "away_team": away,
-        "game_date": str(game_date.date()),
-        "model_trained_as_of": art["trained_as_of"],
-        "prob_home_win": p_home,
-        "prob_away_win": 1 - p_home,
-        "predicted_margin_home": pred["pred_margin"],
-        "predicted_total_points": pred["pred_total"],
-        "elo_home": elo.get(home),
-        "elo_away": elo.get(away),
+        "venue": venue,
+        "game_date": game_date,
+        "model_trained_as_of": model.trained_as_of,
+        "prob_home_win": pred["prob_home_win"],
+        "prob_away_win": pred["prob_away_win"],
+        "prob_draw": pred["prob_draw"],
+        "predicted_margin_home": pred["predicted_margin_home"],
+        "predicted_total_points": pred["predicted_total_points"],
+        "prob_over_total": pred["prob_over_total"],
+        "prob_under_total": pred["prob_under_total"],
+        "total_line": pred["total_line"],
+        "elo_home": model.elo.get(home),
+        "elo_away": model.elo.get(away),
+        "home_venue_experience": float(row["home_venue_exp"].iloc[0]),
+        "away_venue_experience": float(row["away_venue_exp"].iloc[0]),
     }
 
     try:
-        result["rationale"] = rat.build_basketball_rationale(home, away, result)
+        result["rationale"] = rat.build_afl_rationale(home, away, result)
     except Exception as e:
-        result["rationale"] = {"narrative": [], "data_scope": rat.DATA_SCOPE_NOTE,
+        result["rationale"] = {"narrative": [], "data_scope": rat.DATA_SCOPE_NOTE_AFL,
                                 "error": f"{type(e).__name__}: {e}"}
 
-    odds = {"H": odds_home, "A": odds_away}
-    probs_map = {"H": p_home, "A": 1 - p_home}
     edges = {}
-    for k, o in odds.items():
-        if o:
-            edges[k] = edge_and_kelly(probs_map[k], o)
+    for key, odds in (("H", odds_home), ("A", odds_away)):
+        if odds:
+            prob = result["prob_home_win"] if key == "H" else result["prob_away_win"]
+            edges[key] = edge_and_kelly(prob, odds)
     if edges:
         result["market_analysis"] = edges
     return result
@@ -187,6 +178,18 @@ def list_soccer_teams(div: str):
     return sorted(art["dc_model"].teams_)
 
 
-def list_basketball_teams():
-    art = load_basketball_artifact()
-    return sorted(art["snapshot"].keys())
+def list_afl_teams():
+    model = load_afl_model()
+    return sorted((model.snapshot or {}).get("teams", {}).keys())
+
+
+def afl_venues():
+    """Venues seen in the model's recent history, most-used first — used to
+    populate the venue picker, since venue materially changes an AFL
+    prediction through the travel/experience features."""
+    counts: dict[str, int] = {}
+    for key, n in (load_afl_model().snapshot or {}).get("venue_counts", {}).items():
+        _, _, venue = key.partition("|")
+        if venue and venue != "None":
+            counts[venue] = counts.get(venue, 0) + n
+    return [v for v, _ in sorted(counts.items(), key=lambda kv: -kv[1])]

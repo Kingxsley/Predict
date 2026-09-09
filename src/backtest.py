@@ -15,7 +15,7 @@ so the real benchmarks are:
      bettor, far more than raw accuracy.
 
 Soccer backtest evaluates against the real historical closing odds in the
-dataset. NBA backtest evaluates against actual results only (no static
+dataset. The AFL backtest evaluates against actual results only (no static
 public odds archive was available to pull in this offline build — see
 README "Plugging in live odds" for how a book's own feed slots in here).
 """

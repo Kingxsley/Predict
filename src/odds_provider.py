@@ -38,7 +38,10 @@ ODDS_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6h - real prices move, but the free quot
 
 # Our division code -> the-odds-api.com sport key. Verified live against
 # the real /v4/sports list - covers all 20 trained soccer divisions plus
-# NBA, unlike either TheSportsDB or football-data.org's free tiers.
+# the AFL, which is far broader fixture coverage than either TheSportsDB or
+# football-data.org's free tiers. Note this is odds coverage only: a league
+# can have a priced market here while having no free *fixture* feed, which
+# is why the Matchup tab can fetch odds for divisions the board can't list.
 DIV_TO_ODDS_SPORT_KEY = {
     "E0": "soccer_epl", "E1": "soccer_efl_champ", "SP1": "soccer_spain_la_liga",
     "SP2": "soccer_spain_segunda_division", "I1": "soccer_italy_serie_a", "I2": "soccer_italy_serie_b",
@@ -48,7 +51,7 @@ DIV_TO_ODDS_SPORT_KEY = {
     "G1": "soccer_greece_super_league", "USA": "soccer_usa_mls", "BRA": "soccer_brazil_campeonato",
     "ARG": "soccer_argentina_primera_division", "MEX": "soccer_mexico_ligamx",
 }
-NBA_SPORT_KEY = "basketball_nba"
+AFL_SPORT_KEY = "aussierules_afl"
 
 _league_cache: dict[str, dict] = {}  # sport_key -> {"ts": float, "events": [...]}
 
@@ -135,11 +138,11 @@ def get_soccer_odds(div: str, home: str, away: str) -> dict | None:
     return result
 
 
-def get_basketball_odds(home: str, away: str) -> dict | None:
+def get_afl_odds(home: str, away: str) -> dict | None:
     if not ODDS_API_KEY:
         return None
     try:
-        events = _fetch_league_odds(NBA_SPORT_KEY)
+        events = _fetch_league_odds(AFL_SPORT_KEY)
     except (urllib.error.URLError, TimeoutError, OSError):
         return None
 

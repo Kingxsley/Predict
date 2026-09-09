@@ -5,15 +5,12 @@ Soccer: per-league Dixon-Coles + Elo, blended and isotonic-calibrated,
 backtested against real historical closing odds (Brier, log-loss,
 calibration, simulated value-betting ROI vs. the market).
 
-Basketball (NBA): Elo + gradient-boosted margin/total model, backtested
-against actual results (no static public odds archive available offline;
-see README for plugging in a live odds feed).
+The AFL model lives in its own script because its data source, feature set
+and backtest split are all different: see src/train_afl.py.
 
 Usage:
-    python3 src/train.py                          # all default leagues + NBA
+    python3 src/train.py                          # all default leagues
     python3 src/train.py --leagues E0 SP1 I1       # just these soccer leagues
-    python3 src/train.py --skip-basketball
-    python3 src/train.py --skip-soccer
 """
 from __future__ import annotations
 
@@ -36,7 +33,6 @@ from backtest import (
     brier_multiclass, log_loss_multiclass, brier_binary, log_loss_binary,
     calibration_table, simulate_value_betting,
 )
-from basketball_model import build_features, NBAModel, build_live_snapshot, FEATURE_COLS
 
 OUTCOME_MAP = {"H": 0, "D": 1, "A": 2}
 SOCCER_TRAIN_LOOKBACK_YEARS = 6.5
@@ -187,106 +183,17 @@ def train_soccer(leagues: list[str]):
     return reports
 
 
-def train_basketball():
-    print(f"Loading NBA data from {config.BASKETBALL_PROCESSED} ...")
-    df = pd.read_parquet(config.BASKETBALL_PROCESSED)
-    feats, _ = build_features(df)
-    feats_valid = feats.dropna(subset=FEATURE_COLS + ["margin", "total"]).reset_index(drop=True)
-
-    max_date = feats_valid["date"].max()
-    test_start = max_date - pd.DateOffset(months=8)
-    train_df = feats_valid[feats_valid["date"] < test_start]
-    test_df = feats_valid[feats_valid["date"] >= test_start].reset_index(drop=True)
-    half = len(test_df) // 2
-
-    model_bt = NBAModel().fit(train_df)
-    X_test = test_df[FEATURE_COLS]
-    pred_margin = model_bt.margin_model.predict(X_test)
-    pred_total = model_bt.total_model.predict(X_test)
-    from scipy.stats import norm
-    p_home = 0.65 * (1 - norm.cdf(0, loc=pred_margin, scale=model_bt.residual_std_)) + \
-             0.35 * (1 / (1 + 10 ** (-test_df["elo_diff"].values / 400.0)))
-
-    calib_idx = slice(0, half)
-    hold_idx = slice(half, len(test_df))
-    win_calibrator = None
-    y_calib = test_df["home_win"].values[calib_idx]
-    if half > 20 and cv_calibration_helps(p_home[calib_idx], y_calib):
-        from ensemble import _logit
-        from sklearn.linear_model import LogisticRegression
-        win_calibrator = LogisticRegression()
-        win_calibrator.fit(_logit(p_home[calib_idx]).reshape(-1, 1), y_calib)
-        p_home_cal_hold = win_calibrator.predict_proba(_logit(p_home[hold_idx]).reshape(-1, 1))[:, 1]
-    else:
-        p_home_cal_hold = p_home[hold_idx]
-
-    y_hold = test_df["home_win"].values[hold_idx]
-    report = {
-        "n_train": int(len(train_df)),
-        "n_test_holdout": int(len(y_hold)),
-        "residual_std_margin": model_bt.residual_std_,
-        "brier": {
-            "elo_only": brier_binary(1 / (1 + 10 ** (-test_df["elo_diff"].values[hold_idx] / 400.0)), y_hold),
-            "margin_model_blend": brier_binary(p_home[hold_idx], y_hold),
-            "calibrated": brier_binary(p_home_cal_hold, y_hold),
-        },
-        "log_loss": {
-            "elo_only": log_loss_binary(1 / (1 + 10 ** (-test_df["elo_diff"].values[hold_idx] / 400.0)), y_hold),
-            "margin_model_blend": log_loss_binary(p_home[hold_idx], y_hold),
-            "calibrated": log_loss_binary(p_home_cal_hold, y_hold),
-        },
-        "margin_mae": float(np.mean(np.abs(pred_margin[hold_idx] - test_df["margin"].values[hold_idx]))),
-        "total_mae": float(np.mean(np.abs(pred_total[hold_idx] - test_df["total"].values[hold_idx]))),
-    }
-    print(f"NBA backtest: Brier calibrated={report['brier']['calibrated']:.4f} "
-          f"(elo-only={report['brier']['elo_only']:.4f}) | "
-          f"margin MAE={report['margin_mae']:.2f} pts | total MAE={report['total_mae']:.2f} pts")
-
-    with open(config.REPORTS_DIR / "basketball_backtest.json", "w") as f:
-        json.dump(report, f, indent=2, default=float)
-
-    # --- refit production model on ALL data ---
-    model_prod = NBAModel().fit(feats_valid)
-    elo_prod = EloEngine(k=config.NBA_ELO_K, home_adv=config.NBA_ELO_HOME_ADV,
-                          season_regression=config.SEASON_REGRESSION)
-    for row in feats_valid.itertuples(index=False):
-        elo_prod.update_no_draw(
-            row.home_name, row.away_name, row.margin,
-            mov_mult_a=config.NBA_ELO_MOV_MULT_A, mov_mult_b=config.NBA_ELO_MOV_MULT_B,
-            season=row.season,
-        )
-    snapshot = build_live_snapshot(feats_valid)
-
-    out_dir = config.MODELS_DIR / "basketball"
-    out_dir.mkdir(exist_ok=True)
-    artifact = {
-        "model": model_prod,
-        "elo_ratings": dict(elo_prod.ratings),
-        "snapshot": snapshot,
-        "win_calibrator": win_calibrator,
-        "trained_as_of": str(max_date.date()),
-    }
-    with open(out_dir / "nba_model.pkl", "wb") as f:
-        pickle.dump(artifact, f)
-    print(f"Saved NBA production model -> {out_dir / 'nba_model.pkl'}")
-    return report
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--leagues", nargs="*", default=config.DEFAULT_SOCCER_LEAGUES)
     ap.add_argument("--skip-soccer", action="store_true")
-    ap.add_argument("--skip-basketball", action="store_true")
     args = ap.parse_args()
 
     if not args.skip_soccer:
         t0 = time.time()
         train_soccer(args.leagues)
         print(f"Soccer training total: {time.time()-t0:.1f}s")
-    if not args.skip_basketball:
-        t0 = time.time()
-        train_basketball()
-        print(f"Basketball training total: {time.time()-t0:.1f}s")
+    print("\nAFL is trained separately: python3 src/ingest_afl.py && python3 src/train_afl.py")
 
 
 if __name__ == "__main__":

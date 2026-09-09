@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sports Prediction Engine</title>
-<meta name="description" content="Dixon-Coles + Elo soccer and Elo + GBM basketball match models, with backtested accuracy, market-edge analysis and a graded prediction log.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prediction Engine</title>
+<meta name="description" content="Dixon-Coles + Elo soccer and Elo + gradient-boosted AFL match models, with backtested accuracy, market-edge analysis and a graded prediction log.">
 <meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,6 +47,8 @@
     <path d="M4 4l8 8M12 4l-8 8"/></symbol>
   <symbol id="i-download" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 2v8M4.5 7 8 10.5 11.5 7M2.5 13.5h11"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+    <path d="M2 4h12M4.5 8h7M6.5 12h3"/></symbol>
 </svg>
 
 <header class="masthead">
@@ -55,7 +57,7 @@
       <rect width="28" height="28" rx="7" fill="currentColor" opacity="0.12"/>
       <path d="M8 19v-5M14 19V9M20 19v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
     </svg>
-    <div class="brand__name">Prediction Engine <span>· soccer &amp; NBA</span></div>
+    <div class="brand__name">Prediction Engine <span>· soccer &amp; AFL</span></div>
   </div>
 
   <nav class="mainnav" aria-label="Sections">
@@ -85,46 +87,53 @@
     <div class="view__head">
       <h1 id="board-title">Fixture board</h1>
       <p class="view__lede">
-        Every upcoming fixture the live feed returns, priced by the model. Probabilities are aligned
-        column-wise so you can scan down a league and compare at a glance; open a row for expected
-        goals, the market read, and the reasoning behind the number.
+        Every upcoming fixture the live feeds return, priced by the model. Probabilities are aligned
+        column-wise so you can scan down a competition and compare at a glance; open a row for the
+        projection and the reasoning behind it.
       </p>
     </div>
 
     <div class="board">
-      <aside class="rail" aria-label="Board filters">
-        <div class="rail__group">
-          <label class="rail__title" for="board-search">Search</label>
-          <div class="search">
-            <svg aria-hidden="true"><use href="#i-search"/></svg>
-            <input type="search" id="board-search" placeholder="Team or league" autocomplete="off">
-            <kbd aria-hidden="true">/</kbd>
+      <details class="rail" id="board-filters">
+        <summary class="rail__toggle">
+          <svg aria-hidden="true"><use href="#i-filter"/></svg>
+          <span>Filters</span>
+          <span class="rail__toggle-count" id="filter-count"></span>
+        </summary>
+        <div class="rail__inner">
+          <div class="rail__group">
+            <label class="rail__title" for="board-search">Search</label>
+            <div class="search">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="search" id="board-search" placeholder="Team or competition" autocomplete="off">
+              <kbd aria-hidden="true">/</kbd>
+            </div>
+          </div>
+
+          <div class="rail__group">
+            <span class="rail__title" id="rail-sport-label">Sport</span>
+            <div class="segmented" role="group" aria-labelledby="rail-sport-label" id="board-sport">
+              <button type="button" data-sport="all" aria-pressed="true">All</button>
+              <button type="button" data-sport="soccer" aria-pressed="false">Soccer</button>
+              <button type="button" data-sport="afl" aria-pressed="false">AFL</button>
+            </div>
+          </div>
+
+          <div class="rail__group">
+            <label class="rail__title" for="board-sort">Order by</label>
+            <select id="board-sort">
+              <option value="time">Start time</option>
+              <option value="confidence">Model confidence</option>
+              <option value="closest">Closest call</option>
+            </select>
+          </div>
+
+          <div class="rail__group">
+            <span class="rail__title">Competitions</span>
+            <div class="rail__list" id="board-leagues"></div>
           </div>
         </div>
-
-        <div class="rail__group">
-          <span class="rail__title" id="rail-sport-label">Sport</span>
-          <div class="segmented" role="group" aria-labelledby="rail-sport-label" id="board-sport">
-            <button type="button" data-sport="all" aria-pressed="true">All</button>
-            <button type="button" data-sport="soccer" aria-pressed="false">Soccer</button>
-            <button type="button" data-sport="basketball" aria-pressed="false">NBA</button>
-          </div>
-        </div>
-
-        <div class="rail__group">
-          <label class="rail__title" for="board-sort">Order by</label>
-          <select id="board-sort">
-            <option value="time">Kick-off time</option>
-            <option value="confidence">Model confidence</option>
-            <option value="closest">Closest call</option>
-          </select>
-        </div>
-
-        <div class="rail__group">
-          <span class="rail__title">Leagues</span>
-          <div class="rail__list" id="board-leagues"></div>
-        </div>
-      </aside>
+      </details>
 
       <div>
         <div class="toolbar">
@@ -135,7 +144,7 @@
             </button>
           </div>
         </div>
-        <div id="board-errors" style="margin-bottom:1rem"></div>
+        <div id="board-coverage"></div>
         <div id="board-content"></div>
       </div>
     </div>
@@ -146,15 +155,16 @@
     <div class="view__head">
       <h1 id="matchup-title">Custom matchup</h1>
       <p class="view__lede">
-        Price any pairing in a trained league, whether or not it is on the live schedule. Add the
+        Price any pairing the models were trained on, whether or not it is on the live schedule. This
+        covers all 20 soccer divisions, including the ones with no free fixture feed. Add the
         bookmaker's decimal odds to get the implied probability, the model's edge over it, and a
         quarter-Kelly stake suggestion.
       </p>
     </div>
 
-    <div class="segmented" role="tablist" aria-label="Sport" id="matchup-tabs" style="margin-bottom:1.5rem">
+    <div class="segmented" role="tablist" aria-label="Sport" id="matchup-tabs">
       <button type="button" role="tab" id="tab-soccer" aria-controls="pane-soccer" aria-selected="true">Soccer</button>
-      <button type="button" role="tab" id="tab-nba" aria-controls="pane-nba" aria-selected="false">NBA</button>
+      <button type="button" role="tab" id="tab-afl" aria-controls="pane-afl" aria-selected="false">AFL</button>
     </div>
 
     <!-- soccer -->
@@ -163,7 +173,7 @@
         <div class="panel__body">
           <div class="form-grid">
             <div class="field">
-              <label for="s-league">League</label>
+              <label for="s-league">Competition</label>
               <select id="s-league"></select>
             </div>
             <div class="field">
@@ -179,70 +189,76 @@
 
           <h3 class="section-title">Bookmaker odds <span class="hint" style="font-weight:400">(optional)</span></h3>
           <div class="form-grid form-grid--tight">
-            <div class="field"><label for="s-oh">Home (decimal)</label><input type="number" id="s-oh" step="0.01" min="1.01" placeholder="1.90"></div>
-            <div class="field"><label for="s-od">Draw (decimal)</label><input type="number" id="s-od" step="0.01" min="1.01" placeholder="3.60"></div>
-            <div class="field"><label for="s-oa">Away (decimal)</label><input type="number" id="s-oa" step="0.01" min="1.01" placeholder="4.20"></div>
+            <div class="field"><label for="s-oh">Home</label><input type="number" id="s-oh" step="0.01" min="1.01" placeholder="1.90" inputmode="decimal"></div>
+            <div class="field"><label for="s-od">Draw</label><input type="number" id="s-od" step="0.01" min="1.01" placeholder="3.60" inputmode="decimal"></div>
+            <div class="field"><label for="s-oa">Away</label><input type="number" id="s-oa" step="0.01" min="1.01" placeholder="4.20" inputmode="decimal"></div>
             <div class="field" style="justify-content:flex-end">
               <button class="btn btn--secondary" type="button" id="s-fetch-odds">
                 <svg class="spin" aria-hidden="true"><use href="#i-refresh"/></svg> Fetch live odds
               </button>
             </div>
           </div>
-          <p class="hint" id="s-odds-note" style="margin-top:0.75rem" aria-live="polite"></p>
+          <p class="hint" id="s-odds-note" aria-live="polite"></p>
 
-          <div style="margin-top:1.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap">
+          <div class="run-row">
             <button class="btn" type="button" id="s-run">Run model</button>
-            <p class="hint" id="s-err" role="alert"></p>
+            <p class="hint err" id="s-err" role="alert"></p>
           </div>
         </div>
       </div>
-      <div id="s-results" style="margin-top:1.5rem"></div>
+      <div id="s-results"></div>
     </div>
 
-    <!-- nba -->
-    <div id="pane-nba" role="tabpanel" aria-labelledby="tab-nba" hidden>
+    <!-- afl -->
+    <div id="pane-afl" role="tabpanel" aria-labelledby="tab-afl" hidden>
       <div class="panel">
         <div class="panel__body">
           <div class="form-grid">
             <div class="field">
-              <label for="n-home">Home team</label>
-              <input type="text" id="n-home" list="n-teams" placeholder="Celtics" autocomplete="off">
+              <label for="a-home">Home team</label>
+              <input type="text" id="a-home" list="a-teams" placeholder="Geelong" autocomplete="off">
             </div>
             <div class="field">
-              <label for="n-away">Away team</label>
-              <input type="text" id="n-away" list="n-teams" placeholder="Lakers" autocomplete="off">
+              <label for="a-away">Away team</label>
+              <input type="text" id="a-away" list="a-teams" placeholder="Carlton" autocomplete="off">
             </div>
             <div class="field">
-              <label for="n-date">Game date</label>
-              <input type="date" id="n-date">
+              <label for="a-venue">Venue</label>
+              <input type="text" id="a-venue" list="a-venues" placeholder="M.C.G." autocomplete="off">
+              <p class="hint">Changes the result: travel and ground familiarity are real features.</p>
+            </div>
+            <div class="field">
+              <label for="a-date">Match date</label>
+              <input type="date" id="a-date">
             </div>
           </div>
-          <datalist id="n-teams"></datalist>
+          <datalist id="a-teams"></datalist>
+          <datalist id="a-venues"></datalist>
 
-          <div style="display:flex; gap:1.5rem; margin-top:1rem; flex-wrap:wrap">
-            <label class="checkbox"><input type="checkbox" id="n-playoffs"> Playoff game</label>
-            <label class="checkbox"><input type="checkbox" id="n-neutral"> Neutral site</label>
+          <div class="check-row">
+            <label class="checkbox"><input type="checkbox" id="a-final"> Finals match</label>
+            <label class="checkbox"><input type="checkbox" id="a-neutral"> Neutral venue</label>
           </div>
 
           <h3 class="section-title">Bookmaker odds <span class="hint" style="font-weight:400">(optional)</span></h3>
           <div class="form-grid form-grid--tight">
-            <div class="field"><label for="n-oh">Home (decimal)</label><input type="number" id="n-oh" step="0.01" min="1.01" placeholder="1.55"></div>
-            <div class="field"><label for="n-oa">Away (decimal)</label><input type="number" id="n-oa" step="0.01" min="1.01" placeholder="2.50"></div>
+            <div class="field"><label for="a-oh">Home</label><input type="number" id="a-oh" step="0.01" min="1.01" placeholder="1.55" inputmode="decimal"></div>
+            <div class="field"><label for="a-oa">Away</label><input type="number" id="a-oa" step="0.01" min="1.01" placeholder="2.50" inputmode="decimal"></div>
             <div class="field" style="justify-content:flex-end">
-              <button class="btn btn--secondary" type="button" id="n-fetch-odds">
+              <button class="btn btn--secondary" type="button" id="a-fetch-odds">
                 <svg class="spin" aria-hidden="true"><use href="#i-refresh"/></svg> Fetch live odds
               </button>
             </div>
           </div>
-          <p class="hint" id="n-odds-note" style="margin-top:0.75rem" aria-live="polite"></p>
+          <p class="hint" id="a-odds-note" aria-live="polite"></p>
 
-          <div style="margin-top:1.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap">
-            <button class="btn" type="button" id="n-run">Run model</button>
-            <p class="hint" id="n-err" role="alert"></p>
+          <div class="run-row">
+            <button class="btn" type="button" id="a-run">Run model</button>
+            <p class="hint err" id="a-err" role="alert"></p>
           </div>
         </div>
       </div>
-      <div id="n-results" style="margin-top:1.5rem"></div>
+      <div id="a-results"></div>
     </div>
   </section>
 
@@ -251,17 +267,18 @@
     <div class="view__head">
       <h1 id="acca-title">Accumulator builder</h1>
       <p class="view__lede">
-        Searches today's board for the combination of fixtures whose joint probability is highest
-        while still clearing your target price. The odds it reports are model-implied
-        (1 ÷ probability) unless a real bookmaker price was found. The two are always labelled apart.
+        Searches the current board for the combination of fixtures whose joint probability is highest
+        while still clearing your target price. The headline odds are model-implied
+        (1 ÷ probability). Where a real bookmaker price could be found it is shown separately and
+        labelled as such; the two are never mixed.
       </p>
     </div>
 
     <div class="panel">
       <div class="panel__body">
         <div class="form-grid form-grid--tight">
-          <div class="field"><label for="acca-legs">Legs</label><input type="number" id="acca-legs" value="3" min="2" max="6" step="1"></div>
-          <div class="field"><label for="acca-min-odds">Minimum combined odds</label><input type="number" id="acca-min-odds" value="5.0" min="1.1" step="0.5"></div>
+          <div class="field"><label for="acca-legs">Legs</label><input type="number" id="acca-legs" value="3" min="2" max="6" step="1" inputmode="numeric"></div>
+          <div class="field"><label for="acca-min-odds">Min combined odds</label><input type="number" id="acca-min-odds" value="5.0" min="1.1" step="0.5" inputmode="decimal"></div>
           <div class="field"><label for="acca-from">From</label><input type="date" id="acca-from"></div>
           <div class="field"><label for="acca-to">To</label><input type="date" id="acca-to"></div>
           <div class="field" style="justify-content:flex-end">
@@ -270,7 +287,7 @@
         </div>
       </div>
     </div>
-    <div id="acca-content" style="margin-top:1.5rem" aria-live="polite"></div>
+    <div id="acca-content" aria-live="polite"></div>
   </section>
 
   <!-- ================= TRACK RECORD ================= -->
@@ -278,31 +295,37 @@
     <div class="view__head">
       <h1 id="record-title">Track record</h1>
       <p class="view__lede">
-        Every prediction shown on the board is logged once and then graded against the real final
-        score, fetched from the same feed that supplied the fixture. Nothing here is simulated, and
-        nothing is removed after the fact.
+        Every prediction shown on the board is logged once, then graded against the real final score
+        from the same feed that supplied the fixture. Nothing here is simulated, and nothing is
+        removed after the fact.
       </p>
     </div>
 
-    <div class="toolbar">
-      <div class="field" style="width:150px"><label for="log-from">From</label><input type="date" id="log-from"></div>
-      <div class="field" style="width:150px"><label for="log-to">To</label><input type="date" id="log-to"></div>
-      <div class="field" style="width:210px"><label for="log-league">League</label><select id="log-league"><option value="">All leagues</option></select></div>
-      <div class="field">
-        <span class="label" id="log-sport-label">Sport</span>
-        <div class="segmented" role="group" aria-labelledby="log-sport-label" id="log-sport">
-          <button type="button" data-sport="all" aria-pressed="true">All</button>
-          <button type="button" data-sport="soccer" aria-pressed="false">Soccer</button>
-          <button type="button" data-sport="basketball" aria-pressed="false">NBA</button>
+    <details class="rail rail--inline" id="record-filters">
+      <summary class="rail__toggle">
+        <svg aria-hidden="true"><use href="#i-filter"/></svg>
+        <span>Filters</span>
+      </summary>
+      <div class="rail__inner rail__inner--row">
+        <div class="field"><label for="log-from">From</label><input type="date" id="log-from"></div>
+        <div class="field"><label for="log-to">To</label><input type="date" id="log-to"></div>
+        <div class="field"><label for="log-league">Competition</label><select id="log-league"><option value="">All</option></select></div>
+        <div class="field">
+          <span class="label" id="log-sport-label">Sport</span>
+          <div class="segmented" role="group" aria-labelledby="log-sport-label" id="log-sport">
+            <button type="button" data-sport="all" aria-pressed="true">All</button>
+            <button type="button" data-sport="soccer" aria-pressed="false">Soccer</button>
+            <button type="button" data-sport="afl" aria-pressed="false">AFL</button>
+          </div>
+        </div>
+        <div class="field field--actions">
+          <button class="btn btn--ghost" type="button" id="log-clear">Clear</button>
+          <button class="btn btn--secondary" type="button" id="log-export">
+            <svg aria-hidden="true"><use href="#i-download"/></svg> CSV
+          </button>
         </div>
       </div>
-      <div class="toolbar__end">
-        <button class="btn btn--ghost" type="button" id="log-clear">Clear filters</button>
-        <button class="btn btn--secondary" type="button" id="log-export">
-          <svg aria-hidden="true"><use href="#i-download"/></svg> CSV
-        </button>
-      </div>
-    </div>
+    </details>
 
     <div id="log-content" aria-live="polite"></div>
   </section>
@@ -312,10 +335,10 @@
     <div class="view__head">
       <h1 id="backtest-title">Backtest</h1>
       <p class="view__lede">
-        Held-out historical performance, scored against the de-vigged closing price from real
-        bookmaker data. Lower Brier and log-loss are better. These are the unedited contents of
-        <code>reports/*.json</code> as produced by the training run. Beating a closing line
-        consistently is hard, and several leagues here do not.
+        Held-out historical performance. Soccer is scored against the de-vigged closing price from
+        real bookmaker data; the AFL is scored against held-out seasons and stated baselines. Lower
+        Brier and log-loss are better. These are the unedited contents of <code>reports/*.json</code>
+        as produced by the training runs.
       </p>
     </div>
     <div id="backtest-content" aria-live="polite"></div>
@@ -323,16 +346,17 @@
 
   <footer class="colophon">
     <div>
-      <h3>What the model is</h3>
+      <h3>What the models are</h3>
       <p>Soccer: a Dixon-Coles bivariate goal model blended with an Elo rating and isotonically
-      calibrated per league. NBA: an Elo rating plus a gradient-boosted margin/total model. Trained
-      on historical results only.</p>
+      calibrated per competition. AFL: an Elo rating plus gradient-boosted margin and total models,
+      with venue familiarity and travel as explicit features. Both trained on historical results
+      only.</p>
     </div>
     <div>
-      <h3>What it does not know</h3>
-      <p>No injury, suspension, lineup or transfer feed is integrated. Team names from the live
-      schedule are matched to trained names automatically; where a name cannot be matched the
-      prediction still runs on a league-average strength for that side.</p>
+      <h3>What they do not know</h3>
+      <p>No injury, suspension, lineup or roster feed is integrated. Team names from the live
+      schedules are matched to trained names automatically; where a name cannot be matched the
+      prediction still runs on a competition-average strength for that side.</p>
     </div>
     <div>
       <h3>How to use it</h3>

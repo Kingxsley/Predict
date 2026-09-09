@@ -5,12 +5,12 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 SOCCER_RAW = DATA_DIR / "soccer" / "raw" / "matches.csv"
 SOCCER_PROCESSED = DATA_DIR / "soccer" / "processed.parquet"
-BASKETBALL_RAW = DATA_DIR / "basketball" / "raw" / "nba_schedule_master.parquet"
-BASKETBALL_PROCESSED = DATA_DIR / "basketball" / "processed.parquet"
+AFL_PROCESSED = DATA_DIR / "afl" / "processed.parquet"
 MODELS_DIR = ROOT / "models"
 REPORTS_DIR = ROOT / "reports"
+AFL_MODEL_PATH = MODELS_DIR / "afl" / "afl_model.pkl"
 
-for d in [MODELS_DIR, REPORTS_DIR, DATA_DIR / "soccer", DATA_DIR / "basketball"]:
+for d in [MODELS_DIR, REPORTS_DIR, DATA_DIR / "soccer", DATA_DIR / "afl", MODELS_DIR / "afl"]:
     d.mkdir(parents=True, exist_ok=True)
 
 # football-data.co.uk division codes -> human readable names + tier weight.
@@ -70,8 +70,21 @@ SOCCER_HALF_LIFE_DAYS = 400
 # Elo constants
 SOCCER_ELO_K = 20.0
 SOCCER_ELO_HOME_ADV = 60.0
-NBA_ELO_K = 20.0
-NBA_ELO_HOME_ADV = 100.0
-NBA_ELO_MOV_MULT_A = 2.2
-NBA_ELO_MOV_MULT_B = 0.001
 SEASON_REGRESSION = 0.25  # fraction of regression to mean 1500 at season boundary
+
+# AFL. Home advantage is expressed in Elo points; ~35 corresponds to the
+# observed 56.4% home win rate over 2012-2026, which is markedly weaker than
+# the NBA's because several Melbourne clubs share the same "home" grounds and
+# gain little real advantage there. The margin-of-victory damping constants
+# are scaled for AFL margins, whose standard deviation (~42 points) is far
+# wider than a soccer goal difference or an NBA point margin.
+AFL_ELO_K = 24.0
+AFL_ELO_HOME_ADV = 35.0
+AFL_ELO_MOV_MULT_A = 2.2
+AFL_ELO_MOV_MULT_B = 0.001
+
+# Benchmark total for the AFL over/under market. Set near the historical
+# median total (169.1 mean over 2012-2026) so the market is close to an even
+# proposition rather than one the model trivially wins by always picking one
+# side.
+AFL_TOTAL_LINE = 169.5

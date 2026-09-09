@@ -4,7 +4,7 @@ model with the Elo win/draw/loss heuristic, then applies isotonic
 calibration on the home-win probability so that "we said 60%" actually
 means ~60% empirically, not just "60% according to the model's internal
 math." Basketball's ensemble (Elo x margin-model) is handled inline in
-NBAModel.predict since it's simpler (no draw outcome to juggle).
+the AFL model's own predict path, which has no draw outcome to juggle.
 """
 from __future__ import annotations
 

@@ -11,8 +11,8 @@ directly (e.g. for integrating into a sportsbook's own trading tools):
     GET /api/soccer/leagues
     GET /api/soccer/teams?div=E0
     GET /api/soccer/predict?div=E0&home=Arsenal&away=Chelsea&odds_home=1.9&odds_draw=3.6&odds_away=4.2
-    GET /api/basketball/teams
-    GET /api/basketball/predict?home=Celtics&away=Lakers&odds_home=1.55&odds_away=2.5
+    GET /api/afl/teams
+    GET /api/afl/predict?home=Geelong&away=Carlton&venue=M.C.G.
 """
 import json
 import sys
@@ -68,21 +68,36 @@ def soccer_predict(
         raise HTTPException(400, f"{type(e).__name__}: {e}")
 
 
-@app.get("/api/basketball/teams")
-def basketball_teams():
-    return pred.list_basketball_teams()
+@app.get("/api/afl/teams")
+def afl_teams():
+    try:
+        return pred.list_afl_teams()
+    except FileNotFoundError as e:
+        raise HTTPException(503, str(e))
 
 
-@app.get("/api/basketball/predict")
-def basketball_predict(
-    home: str, away: str, game_date: Optional[str] = None,
-    is_playoffs: bool = False, neutral_site: bool = False,
+@app.get("/api/afl/venues")
+def afl_venues():
+    """Venues the model has recent history for. Venue is not cosmetic in the
+    AFL: interstate travel and ground familiarity are real features, so the
+    same fixture at a different ground genuinely prices differently."""
+    try:
+        return pred.afl_venues()
+    except FileNotFoundError as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/afl/predict")
+def afl_predict(
+    home: str, away: str, venue: Optional[str] = None,
+    game_date: Optional[str] = None, is_final: bool = False, neutral: bool = False,
     odds_home: Optional[float] = None, odds_away: Optional[float] = None,
 ):
     try:
-        return pred.predict_basketball(
-            home, away, game_date, is_playoffs, neutral_site, odds_home, odds_away
-        )
+        return pred.predict_afl(home, away, venue, game_date, is_final, neutral,
+                                 odds_home, odds_away)
+    except FileNotFoundError as e:
+        raise HTTPException(503, str(e))
     except Exception as e:
         raise HTTPException(400, f"{type(e).__name__}: {e}")
 
@@ -110,17 +125,18 @@ def analytics():
     """Real backtest results — unedited output of src/backtest.py via
     src/train.py, not live-computed. Per-league Brier score/log-loss
     (model vs. real historical closing-odds market) and a value-betting
-    ROI simulation for soccer; win-probability Brier/log-loss and margin/
-    total MAE for NBA. See README "Backtest results" for methodology."""
+    ROI simulation for soccer; win-probability Brier/log-loss plus margin and
+    total MAE against held-out seasons for the AFL, each against a stated
+    baseline. See README "Backtest results" for methodology."""
     try:
         soccer = json.loads(config.REPORTS_DIR.joinpath("soccer_backtest.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
         soccer = []
     try:
-        basketball = json.loads(config.REPORTS_DIR.joinpath("basketball_backtest.json").read_text(encoding="utf-8"))
+        afl = json.loads(config.REPORTS_DIR.joinpath("afl_backtest.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
-        basketball = None
-    return {"soccer": soccer, "basketball": basketball}
+        afl = None
+    return {"soccer": soccer, "afl": afl}
 
 
 @app.get("/api/tracking/log")
@@ -150,11 +166,11 @@ def odds_soccer(div: str, home: str, away: str):
     return {"available": True, **result}
 
 
-@app.get("/api/odds/basketball")
-def odds_basketball(home: str, away: str):
+@app.get("/api/odds/afl")
+def odds_afl(home: str, away: str):
     if not odds.is_configured():
         return {"available": False, "reason": "No THE_ODDS_API_KEY configured on this server."}
-    result = odds.get_basketball_odds(home, away)
+    result = odds.get_afl_odds(home, away)
     if result is None:
         return {"available": False, "reason": "Fixture not found on the current odds board."}
     return {"available": True, **result}
@@ -175,6 +191,23 @@ def accumulator(
                                        date_from=date_from, date_to=date_to)
     except Exception as e:
         raise HTTPException(500, f"{type(e).__name__}: {e}")
+
+
+@app.get("/api/status")
+def status():
+    """What the app can actually serve right now: which leagues have a live
+    fixture feed, which are off-season, which have no free source at all, and
+    how much of each provider's rate budget is left. Surfaced in the UI so a
+    thin board is explained rather than just looking broken."""
+    try:
+        data = live_fixtures.get_live_fixtures()
+        return {
+            "coverage": data.get("coverage", []),
+            "summary": data.get("summary", {}),
+            "generated_at": data.get("generated_at"),
+        }
+    except Exception as e:
+        raise HTTPException(502, f"{type(e).__name__}: {e}")
 
 
 @app.get("/healthz")

@@ -1,17 +1,18 @@
 """
 Daily accumulator (parlay) builder: picks one leg from each of several
 different upcoming fixtures - each leg being that fixture's single most
-confident market call (1X2, BTTS, or over/under 2.5 for soccer; moneyline
-for NBA) - and searches for the combination whose combined odds clears a
-target minimum while keeping combined win probability as high as possible.
+confident market call (1X2, BTTS, or over/under 2.5 for soccer; head-to-head
+or total points for the AFL) - and searches for the combination whose
+combined odds clears a target minimum while keeping combined win probability
+as high as possible.
 
-IMPORTANT — these are MODEL-IMPLIED odds (1 / predicted probability), not
-real bookmaker prices. No live odds feed is integrated anywhere in this
-app (see fixtures.py's module docstring) - a real sportsbook's actual
-price for any of these markets will differ, usually favoring the book via
-their overround/vig. Treat the "combined odds" number here as a read on
-how confident the model's combined view is, not a quote you could actually
-get paid out at. Never present this as a real betting line.
+IMPORTANT: the headline combined figure is MODEL-IMPLIED odds
+(1 / predicted probability), not a real bookmaker price. Where a real price
+could be looked up for a leg it is attached separately as `real_odds` and
+labelled as such in the UI; the two are never mixed. A sportsbook's actual
+price will differ, usually in the book's favour via the overround. Treat the
+combined number as a read on how confident the model's combined view is, not
+a quote you could be paid out at.
 """
 from __future__ import annotations
 
@@ -49,19 +50,23 @@ def _soccer_leg(fixture: dict) -> dict | None:
     }
 
 
-def _basketball_leg(fixture: dict) -> dict | None:
+def _afl_leg(fixture: dict) -> dict | None:
     p = fixture.get("prediction") or {}
     if "error" in p:
         return None
     home, away = fixture["home_team_live_name"], fixture["away_team_live_name"]
-    if p["prob_home_win"] >= p["prob_away_win"]:
-        pick, prob, label = "HOME", p["prob_home_win"], f"{home} to win"
-    else:
-        pick, prob, label = "AWAY", p["prob_away_win"], f"{away} to win"
+    line = p.get("total_line", 169.5)
+    candidates = [
+        ("h2h", "HOME", p["prob_home_win"], f"{home} to win"),
+        ("h2h", "AWAY", p["prob_away_win"], f"{away} to win"),
+        ("total_points", "OVER", p.get("prob_over_total", 0), f"Over {line} points"),
+        ("total_points", "UNDER", p.get("prob_under_total", 0), f"Under {line} points"),
+    ]
+    market, pick, prob, label = max(candidates, key=lambda c: c[2])
     return {
-        "sport": "basketball", "league": "NBA", "date": fixture["date"], "time": fixture.get("time"),
-        "home": home, "away": away,
-        "market": "moneyline", "pick": pick, "label": label, "probability": prob,
+        "sport": "afl", "league": "AFL", "date": fixture["date"], "time": fixture.get("time"),
+        "home": home, "away": away, "venue": fixture.get("venue"),
+        "market": market, "pick": pick, "label": label, "probability": prob,
         "rationale": (p.get("rationale") or {}).get("narrative", []),
     }
 
@@ -79,12 +84,12 @@ def _candidate_legs(date_from: str | None, date_to: str | None) -> list[dict]:
             leg = _soccer_leg(f)
             if leg:
                 legs.append(leg)
-    for f in (data.get("basketball") or {}).get("fixtures", []):
+    for f in (data.get("afl") or {}).get("fixtures", []):
         if date_from and (f.get("date") or "") < date_from:
             continue
         if date_to and (f.get("date") or "") > date_to:
             continue
-        leg = _basketball_leg(f)
+        leg = _afl_leg(f)
         if leg:
             legs.append(leg)
     return legs
@@ -173,8 +178,10 @@ def _attach_real_odds(legs: list[dict]) -> None:
                 result = odds.get_soccer_odds(leg["div"], leg["home"], leg["away"])
                 if result:
                     leg["real_odds"] = result.get(field)
-            elif leg["sport"] == "basketball":
-                result = odds.get_basketball_odds(leg["home"], leg["away"])
+            elif leg["sport"] == "afl":
+                if leg["market"] != "h2h":
+                    continue  # totals here use our own line, not the book's
+                result = odds.get_afl_odds(leg["home"], leg["away"])
                 if result:
                     field = "odds_home" if leg["pick"] == "HOME" else "odds_away"
                     leg["real_odds"] = result.get(field)
