@@ -16,7 +16,7 @@ COPY src/ ./src/
 COPY models/ ./models/
 COPY data/ ./data/
 COPY reports/ ./reports/
-COPY dashboard.html ./
+COPY web/ ./web/
 
 EXPOSE 8000
 CMD ["python3", "src/api.py"]

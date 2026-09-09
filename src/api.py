@@ -21,7 +21,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
 
 import config
@@ -32,6 +33,11 @@ import accumulator as acca
 import odds_provider as odds
 
 app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
+
+# The dashboard is a plain static bundle (no build step): index.html plus one
+# stylesheet and one ES module, served from web/ and mounted at /assets.
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
 
 
 @app.get("/api/soccer/leagues")
@@ -81,10 +87,9 @@ def basketball_predict(
         raise HTTPException(400, f"{type(e).__name__}: {e}")
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def dashboard():
-    html_path = Path(__file__).resolve().parent.parent / "dashboard.html"
-    return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return FileResponse(WEB_DIR / "index.html", media_type="text/html")
 
 
 @app.get("/api/fixtures/live")

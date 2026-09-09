@@ -1,0 +1,719 @@
+/* ==========================================================================
+   Sports Prediction Engine — design system
+
+   Register: product UI. The interface is an analysis surface, not a
+   sportsbook: dense, high-contrast, light by default, with colour reserved
+   almost entirely for data. Every mark colour below was validated with the
+   dataviz palette validator (CVD separation, normal-vision separation,
+   lightness band, contrast vs. surface) against the actual surfaces here —
+   don't substitute a hue without re-running it.
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces — cool-tinted neutrals, ~0.005 chroma toward the blue accent. */
+  --bg:            #f5f7f9;   /* page plane                                  */
+  --surface:       #ffffff;   /* cards, rows, table body                     */
+  --surface-2:     #f1f4f7;   /* rails, toolbars, table headers, wells       */
+  --surface-3:     #e7ebf0;   /* hover on --surface-2                        */
+  --border:        #dce0e5;
+  --border-strong: #c3c8ce;
+
+  /* Ink */
+  --ink:   #181d24;           /* 16.9:1 on surface                           */
+  --ink-2: #525961;           /*  7.1:1 — secondary copy                     */
+  --ink-3: #6e757e;           /*  4.7:1 — labels, placeholders (still AA)    */
+
+  /* Interaction. --accent is the fill; --accent-ink the text on it;
+     --accent-text the on-surface variant that clears 4.5:1 as body copy. */
+  --accent:        #1f66c4;
+  --accent-hover:  #1a5aae;
+  --accent-ink:    #ffffff;
+  --accent-text:   #1f66c4;
+  --accent-wash:   #e8f0fb;
+  --focus:         #1f66c4;
+
+  /* Status — reserved. Never used as a series colour. */
+  --pos:      #00792b;
+  --pos-wash: #e3f4e8;
+  --neg:      #c2152f;
+  --neg-wash: #fdeaec;
+  --warn:     #ad7300;
+  --warn-wash:#fbf1dd;
+
+  /* Series — 1X2 outcome space. Validated all-pairs on #ffffff:
+     worst CVD ΔE 11.3, worst normal-vision ΔE 17.6, all ≥ 3:1. */
+  --home: #2a78d6;
+  --draw: #b57500;
+  --away: #c4436f;
+
+  /* Type */
+  /* Public Sans: a variable grotesque drawn for dense public-data interfaces.
+     Chosen over the usual UI defaults for its unambiguous 1/l/I, tall
+     x-height and real tabular figures, and because the variable weight axis
+     lets the scale below use intermediate weights rather than snapping. */
+  --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --text-3xl: 1.75rem;   /* 28 — page-level figures                          */
+  --text-2xl: 1.375rem;  /* 22 — view titles                                 */
+  --text-xl:  1.125rem;  /* 18 — section titles                              */
+  --text-lg:  1rem;      /* 16                                               */
+  --text-md:  0.875rem;  /* 14 — body / table default                        */
+  --text-sm:  0.8125rem; /* 13                                               */
+  --text-xs:  0.75rem;   /* 12 — labels, meta                                */
+
+  /* Space — 4px base */
+  --s1: 0.25rem; --s2: 0.5rem;  --s3: 0.75rem; --s4: 1rem;
+  --s5: 1.5rem;  --s6: 2rem;    --s7: 3rem;    --s8: 4rem;
+
+  --r-sm: 5px; --r: 8px; --r-lg: 12px; --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-2: 0 4px 12px -2px rgb(16 24 40 / 0.10), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-3: 0 12px 32px -8px rgb(16 24 40 / 0.18);
+
+  /* Motion */
+  --ease: cubic-bezier(0.25, 1, 0.5, 1);         /* ease-out-quart           */
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-1: 120ms; --dur-2: 180ms; --dur-3: 240ms;
+
+  /* Semantic z-index scale — no arbitrary values anywhere in this file. */
+  --z-base: 0; --z-sticky: 100; --z-rail: 200; --z-header: 300;
+  --z-dropdown: 400; --z-toast: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* Dark steps are chosen for the dark surface, not flipped from light.
+   Series validated all-pairs on #121519: worst CVD ΔE 13.2,
+   worst normal-vision ΔE 19.3, all ≥ 3:1. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d11; --surface: #121519; --surface-2: #1b1e23; --surface-3: #242930;
+    --border: #272c31; --border-strong: #3b4047;
+    --ink: #f0f2f4; --ink-2: #b1b6bd; --ink-3: #888e96;
+    --accent: #3987e5; --accent-hover: #4d97f0; --accent-ink: #06182e;
+    --accent-text: #6faaf0; --accent-wash: #14243a; --focus: #6faaf0;
+    --pos: #50c76a; --pos-wash: #122b1a; --neg: #f75c61; --neg-wash: #331416;
+    --warn: #e7b643; --warn-wash: #2e2410;
+    --home: #3987e5; --draw: #c98500; --away: #d55181;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+    --shadow-3: 0 12px 32px -8px rgb(0 0 0 / 0.65);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d11; --surface: #121519; --surface-2: #1b1e23; --surface-3: #242930;
+  --border: #272c31; --border-strong: #3b4047;
+  --ink: #f0f2f4; --ink-2: #b1b6bd; --ink-3: #888e96;
+  --accent: #3987e5; --accent-hover: #4d97f0; --accent-ink: #06182e;
+  --accent-text: #6faaf0; --accent-wash: #14243a; --focus: #6faaf0;
+  --pos: #50c76a; --pos-wash: #122b1a; --neg: #f75c61; --neg-wash: #331416;
+  --warn: #e7b643; --warn-wash: #2e2410;
+  --home: #3987e5; --draw: #c98500; --away: #d55181;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-3: 0 12px 32px -8px rgb(0 0 0 / 0.65);
+}
+
+/* ---------- 2. Base ------------------------------------------------------ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 650; letter-spacing: -0.011em; line-height: 1.25; }
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); }
+h3 { font-size: var(--text-lg); }
+p  { margin: 0; }
+
+:where(a) { color: var(--accent-text); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+/* Literal paths and commands only, never UI labels. */
+code {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  font-size: 0.9em; padding: 1px 5px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.num { font-variant-numeric: tabular-nums; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* ---------- 3. App shell ------------------------------------------------- */
+
+.masthead {
+  position: sticky; top: 0; z-index: var(--z-header);
+  display: flex; align-items: center; gap: var(--s5);
+  padding: 0 var(--s5);
+  height: 56px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
+.brand__mark {
+  width: 28px; height: 28px; flex-shrink: 0;
+  color: var(--accent-text);
+}
+.brand__name {
+  font-size: var(--text-md); font-weight: 680; letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+.brand__name span { color: var(--ink-3); font-weight: 500; }
+
+.mainnav { display: flex; gap: var(--s1); overflow-x: auto; scrollbar-width: none; }
+.mainnav::-webkit-scrollbar { display: none; }
+.mainnav a {
+  position: relative;
+  display: block; padding: var(--s2) var(--s3);
+  font-size: var(--text-md); font-weight: 550; color: var(--ink-2);
+  text-decoration: none; border-radius: var(--r-sm); white-space: nowrap;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.mainnav a:hover { color: var(--ink); background: var(--surface-2); }
+.mainnav a[aria-current="page"] {
+  color: var(--accent-text); font-weight: 620; background: var(--accent-wash);
+}
+
+.masthead__end { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+
+.model-status {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap;
+}
+.model-status__dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--pos); flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pos) 22%, transparent);
+}
+.model-status[data-state="stale"] .model-status__dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+.model-status[data-state="down"]  .model-status__dot { background: var(--neg);  box-shadow: 0 0 0 3px color-mix(in srgb, var(--neg) 22%, transparent); }
+
+.shell { max-width: 1400px; margin: 0 auto; padding: var(--s5) var(--s5) var(--s8); }
+
+.view[hidden] { display: none; }
+
+.view__head { margin-bottom: var(--s5); }
+.view__head h1 { margin-bottom: var(--s2); }
+.view__lede { color: var(--ink-2); font-size: var(--text-md); max-width: 68ch; text-wrap: pretty; }
+
+/* ---------- 4. Controls -------------------------------------------------- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: 0 var(--s4); height: 34px;
+  font: inherit; font-size: var(--text-md); font-weight: 560;
+  border-radius: var(--r); border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap;
+  background: var(--accent); color: var(--accent-ink);
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+              color var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease);
+}
+.btn:hover:not(:disabled) { background: var(--accent-hover); }
+.btn:active:not(:disabled) { transform: translateY(0.5px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn--secondary {
+  background: var(--surface); color: var(--ink); border-color: var(--border-strong);
+  box-shadow: var(--shadow-1);
+}
+.btn--secondary:hover:not(:disabled) { background: var(--surface-2); border-color: var(--ink-3); }
+
+.btn--ghost { background: transparent; color: var(--ink-2); }
+.btn--ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+
+.btn--icon { width: 34px; padding: 0; flex-shrink: 0; }
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.btn[data-busy="true"] svg.spin { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.field { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.field > label, .label {
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  letter-spacing: 0.005em;
+}
+.hint { font-size: var(--text-xs); color: var(--ink-3); text-wrap: pretty; }
+
+input[type="text"], input[type="search"], input[type="number"],
+input[type="date"], select {
+  width: 100%; height: 34px; padding: 0 var(--s3);
+  font: inherit; font-size: var(--text-md); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--r); box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+select {
+  appearance: none; padding-right: var(--s6);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%),
+                    linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position: calc(100% - 16px) 15px, calc(100% - 11px) 15px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+input:hover:not(:disabled), select:hover:not(:disabled) { border-color: var(--ink-3); }
+input:focus-visible, select:focus-visible {
+  outline: none; border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent);
+}
+input::placeholder { color: var(--ink-3); }
+input:disabled, select:disabled { background: var(--surface-2); color: var(--ink-3); cursor: not-allowed; }
+
+.checkbox { display: flex; align-items: center; gap: var(--s2); font-size: var(--text-md); cursor: pointer; }
+.checkbox input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+.search { position: relative; }
+.search input { padding-left: 34px; }
+.search svg {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--ink-3); pointer-events: none;
+}
+.search kbd {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font: inherit; font-size: 11px; color: var(--ink-3);
+  padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface-2); pointer-events: none;
+}
+.search input:not(:placeholder-shown) ~ kbd { opacity: 0; }
+
+/* Segmented control — replaces the old pill-chip row. */
+.segmented {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r);
+}
+.segmented button {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3); height: 28px;
+  font: inherit; font-size: var(--text-sm); font-weight: 550; color: var(--ink-2);
+  background: transparent; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.segmented button:hover { color: var(--ink); }
+.segmented button[aria-pressed="true"], .segmented button[aria-selected="true"] {
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1);
+}
+
+.toolbar {
+  display: flex; align-items: flex-end; gap: var(--s3); flex-wrap: wrap;
+  margin-bottom: var(--s4);
+}
+.toolbar__end { margin-left: auto; display: flex; align-items: flex-end; gap: var(--s2); }
+
+/* ---------- 5. Surfaces -------------------------------------------------- */
+
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+.panel__head {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s4) var(--s5); border-bottom: 1px solid var(--border);
+}
+.panel__head h2 { font-size: var(--text-md); font-weight: 620; }
+.panel__body { padding: var(--s5); }
+
+.section-title {
+  font-size: var(--text-md); font-weight: 620; color: var(--ink);
+  margin: var(--s6) 0 var(--s3);
+}
+.section-title:first-child { margin-top: 0; }
+
+.note {
+  font-size: var(--text-xs); color: var(--ink-3); line-height: 1.6;
+  max-width: 90ch; text-wrap: pretty;
+}
+.note strong { color: var(--ink-2); font-weight: 600; }
+
+/* ---------- 6. Metrics --------------------------------------------------- */
+
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
+}
+.metric { background: var(--surface); padding: var(--s4) var(--s4) var(--s4); }
+.metric__label {
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  display: flex; align-items: center; gap: var(--s2);
+}
+.metric__value {
+  font-size: var(--text-3xl); font-weight: 640; letter-spacing: -0.022em;
+  margin-top: var(--s1); line-height: 1.15;
+}
+.metric__value small { font-size: var(--text-sm); font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.metric__sub { font-size: var(--text-xs); color: var(--ink-3); margin-top: var(--s1); }
+
+/* Accuracy meter — a thin magnitude bar under a percentage. */
+.meter { height: 4px; border-radius: 2px; background: var(--surface-3); margin-top: var(--s3); overflow: hidden; }
+/* Single fill in a clipping track: scaleX from the left edge, so the fill
+   composites instead of relaying out. The track's overflow supplies the
+   rounded end, so the fill itself carries no radius to distort. */
+.meter__fill {
+  height: 100%; width: 100%; background: var(--accent);
+  transform: scaleX(var(--fill, 0)); transform-origin: left center;
+  transition: transform var(--dur-3) var(--ease);
+}
+.meter__fill--pos { background: var(--pos); }
+.meter__fill--neg { background: var(--neg); }
+
+/* ---------- 7. Fixture board --------------------------------------------- */
+
+.board { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: var(--s5); align-items: start; }
+
+.rail {
+  position: sticky; top: calc(56px + var(--s5)); z-index: var(--z-rail);
+  max-height: calc(100vh - 56px - var(--s6)); overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+.rail__group { display: flex; flex-direction: column; gap: var(--s2); }
+.rail__title {
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  padding: 0 var(--s2);
+}
+.rail__list { display: flex; flex-direction: column; gap: 1px; }
+.rail__item {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; padding: var(--s2) var(--s2); min-height: 30px;
+  font: inherit; font-size: var(--text-sm); color: var(--ink-2); text-align: left;
+  background: transparent; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.rail__item:hover { background: var(--surface-2); color: var(--ink); }
+.rail__item[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-text); font-weight: 600; }
+.rail__item span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail__count { margin-left: auto; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rail__item[aria-pressed="true"] .rail__count { color: inherit; }
+
+.league-block { margin-bottom: var(--s6); scroll-margin-top: 80px; }
+.league-block__head {
+  display: flex; align-items: baseline; gap: var(--s3);
+  padding-bottom: var(--s2); margin-bottom: var(--s2);
+  border-bottom: 1px solid var(--border);
+}
+.league-block__head h2 { font-size: var(--text-md); font-weight: 620; }
+.league-block__head .rail__count { margin-left: 0; }
+
+/* The fixture row. Not a card — a row, so probabilities align column-wise
+   across every fixture and can be scanned vertically. */
+.fixtures { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.fixtures > * + * { border-top: 1px solid var(--border); }
+
+.fixture { display: block; }
+.fixture__summary {
+  display: grid;
+  grid-template-columns: 86px minmax(150px, 1.4fr) minmax(220px, 1.1fr) minmax(120px, 0.8fr) 28px;
+  align-items: center; gap: var(--s4);
+  width: 100%; padding: var(--s3) var(--s4);
+  font: inherit; text-align: left; color: inherit;
+  background: transparent; border: 0; cursor: pointer;
+  transition: background var(--dur-1) var(--ease);
+}
+.fixture__summary:hover { background: var(--surface-2); }
+.fixture__summary:focus-visible { outline-offset: -2px; }
+
+.fixture__when { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.35; }
+.fixture__when b { display: block; font-size: var(--text-md); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.fixture__teams { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fixture__team { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.fixture__team span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-md); font-weight: 520;
+}
+.fixture__team--fav span { font-weight: 620; }
+.side {
+  flex-shrink: 0; width: 14px;
+  font-size: 10px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.02em;
+}
+
+/* Stacked outcome bar + aligned numeric cells. Identity never comes from
+   colour alone: each cell carries its own H / D / A label and a swatch. */
+.odds { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.probbar { display: flex; gap: 2px; height: 6px; }
+/* Width (not scaleX) is deliberate here and is the only correct property:
+   these are stacked flex segments that must displace each other to sum to
+   100%, which a transform cannot express. It runs once per row on first
+   paint via @starting-style, on three 6px-tall elements, and is disabled
+   entirely under prefers-reduced-motion. */
+.probbar > i {
+  display: block; border-radius: 2px; min-width: 2px;
+  transition: width var(--dur-3) var(--ease-expo);
+}
+/* Gated on data-animate so the bars grow in when fresh data lands, but not on
+   every keystroke while filtering an already-loaded board. */
+@starting-style { .fixtures[data-animate="true"] .probbar > i { width: 0; } }
+.probbar > i.is-home { background: var(--home); }
+.probbar > i.is-draw { background: var(--draw); }
+.probbar > i.is-away { background: var(--away); }
+
+.probcells { display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); gap: var(--s2); }
+.probcell { display: flex; align-items: baseline; gap: 5px; font-size: var(--text-xs); color: var(--ink-3); }
+.probcell b { font-size: var(--text-md); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.swatch { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; align-self: center; }
+.swatch--home { background: var(--home); } .swatch--draw { background: var(--draw); } .swatch--away { background: var(--away); }
+
+.fixture__pick { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fixture__pick b { font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fixture__pick span { font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.disclose {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  color: var(--ink-3); border-radius: var(--r-sm);
+}
+.disclose svg { width: 14px; height: 14px; transition: transform var(--dur-2) var(--ease); }
+.fixture__summary[aria-expanded="true"] .disclose svg { transform: rotate(90deg); }
+
+/* Expanding detail: grid-rows 0fr→1fr animates without measuring heights. */
+.fixture__detail {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-3) var(--ease);
+}
+.fixture__detail[data-open="true"] { grid-template-rows: 1fr; }
+.fixture__detail > div { overflow: hidden; }
+.fixture__detail-inner {
+  padding: var(--s4) var(--s4) var(--s5) calc(86px + var(--s4) + var(--s4));
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+}
+
+.readouts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); margin-bottom: var(--s4); }
+.readout { font-size: var(--text-xs); color: var(--ink-3); }
+.readout b { display: block; font-size: var(--text-md); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 1px; }
+
+.why { margin: 0; padding-left: var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.why li { font-size: var(--text-sm); color: var(--ink-2); line-height: 1.55; max-width: 78ch; text-wrap: pretty; }
+.why li b { color: var(--ink); font-weight: 600; }
+.why-scope { margin-top: var(--s3); font-size: var(--text-xs); color: var(--ink-3); line-height: 1.55; max-width: 80ch; text-wrap: pretty; }
+
+.form-pills { display: inline-flex; gap: 2px; vertical-align: middle; }
+.form-pill {
+  width: 15px; height: 15px; border-radius: 3px;
+  font-size: 9px; font-weight: 700; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.form-pill.W { background: var(--pos); } .form-pill.L { background: var(--neg); }
+.form-pill.D { background: var(--draw); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .form-pill { color: #0b0d11; } }
+:root[data-theme="dark"] .form-pill { color: #0b0d11; }
+
+/* ---------- 8. Tables ---------------------------------------------------- */
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+thead th {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  padding: var(--s3) var(--s4); text-align: left; white-space: nowrap;
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+tbody td { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--text-xs); color: var(--ink-3); text-align: left; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  font-size: var(--text-xs); font-weight: 600; white-space: nowrap;
+}
+.badge--pos  { background: var(--pos-wash);  color: var(--pos); }
+.badge--neg  { background: var(--neg-wash);  color: var(--neg); }
+.badge--warn { background: var(--warn-wash); color: var(--warn); }
+.badge--mute { background: var(--surface-3); color: var(--ink-2); }
+.badge svg { width: 11px; height: 11px; }
+
+.delta-pos { color: var(--pos); font-weight: 600; }
+.delta-neg { color: var(--neg); }
+
+/* Diverging bar cell — model Brier minus market Brier, zero at centre. */
+.divbar { position: relative; width: 100%; min-width: 110px; height: 16px; }
+.divbar::before {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 1px; background: var(--ink-3);
+}
+.divbar i { position: absolute; top: 3px; height: 10px; border-radius: 2px; }
+.divbar i.pos { left: 50%; background: var(--pos); }
+.divbar i.neg { right: 50%; background: var(--neg); }
+
+/* ---------- 9. States ---------------------------------------------------- */
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--r-sm);
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.skel-row {
+  display: grid;
+  grid-template-columns: 86px minmax(150px, 1.4fr) minmax(220px, 1.1fr) minmax(120px, 0.8fr) 28px;
+  align-items: center; gap: var(--s4); padding: var(--s4);
+}
+.skel-row > .skeleton { height: 12px; }
+.skel-row > .skeleton:nth-child(2) { height: 32px; }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  padding: var(--s8) var(--s5); text-align: center;
+}
+.empty svg { width: 28px; height: 28px; color: var(--ink-3); }
+.empty h3 { font-size: var(--text-md); font-weight: 620; }
+.empty p { font-size: var(--text-sm); color: var(--ink-2); max-width: 52ch; text-wrap: pretty; }
+.empty__actions { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; justify-content: center; }
+
+.callout {
+  display: flex; gap: var(--s3); padding: var(--s3) var(--s4);
+  border: 1px solid var(--border); border-radius: var(--r);
+  font-size: var(--text-sm); color: var(--ink-2); background: var(--surface);
+}
+.callout svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.callout--neg  { background: var(--neg-wash);  border-color: color-mix(in srgb, var(--neg) 30%, transparent);  color: var(--ink); }
+.callout--neg  svg { color: var(--neg); }
+.callout--warn { background: var(--warn-wash); border-color: color-mix(in srgb, var(--warn) 30%, transparent); color: var(--ink); }
+.callout--warn svg { color: var(--warn); }
+.callout--info svg { color: var(--ink-3); }
+.callout > div { min-width: 0; }
+.callout summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.callout details ul { margin: var(--s2) 0 0; padding-left: var(--s4); }
+.callout details li { margin-bottom: 2px; }
+
+/* ---------- 10. Matchup + accumulator ------------------------------------ */
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s4); }
+.form-grid--tight { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+.outcomes { display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); gap: 1px; background: var(--border);
+            border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--s5); }
+.outcome { background: var(--surface); padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.outcome__label { display: flex; align-items: center; gap: var(--s2); font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); }
+.outcome__label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outcome__value { font-size: var(--text-3xl); font-weight: 640; letter-spacing: -0.022em; font-variant-numeric: tabular-nums; }
+.outcome__bar { height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.outcome__bar i {
+  display: block; height: 100%; width: 100%;
+  transform: scaleX(var(--fill, 0)); transform-origin: left center;
+  transition: transform var(--dur-3) var(--ease-expo);
+}
+
+.leg { padding: var(--s4); }
+.leg + .leg { border-top: 1px solid var(--border); }
+.leg__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
+.leg__pick { font-size: var(--text-md); font-weight: 620; }
+.leg__meta { font-size: var(--text-xs); color: var(--ink-3); }
+.leg__index {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0;
+  font-size: 11px; font-weight: 650; color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 50%;
+}
+
+/* ---------- 11. Footer --------------------------------------------------- */
+
+.colophon {
+  margin-top: var(--s7); padding-top: var(--s5);
+  border-top: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s5);
+}
+.colophon h3 { font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); margin-bottom: var(--s2); }
+.colophon p { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.6; text-wrap: pretty; }
+
+/* ---------- 12. Responsive ----------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .board { grid-template-columns: 1fr; }
+  .rail {
+    position: static; max-height: none;
+    flex-direction: row; flex-wrap: wrap; gap: var(--s3);
+    padding-bottom: var(--s4); border-bottom: 1px solid var(--border);
+  }
+  .rail__group { flex: 1 1 240px; }
+  .rail__list { flex-direction: row; flex-wrap: wrap; }
+  .rail__item { width: auto; border: 1px solid var(--border); }
+}
+
+@media (max-width: 900px) {
+  .shell { padding: var(--s4) var(--s4) var(--s7); }
+  .masthead { padding: 0 var(--s4); gap: var(--s4); }
+  .brand__name span { display: none; }
+  .model-status { display: none; }
+
+  /* Row → stacked block. Probabilities stay in aligned columns. */
+  .fixture__summary, .skel-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "teams when" "odds odds" "pick chev";
+    gap: var(--s3);
+    padding: var(--s4);
+  }
+  .fixture__when  { grid-area: when; text-align: right; }
+  .fixture__teams { grid-area: teams; }
+  .odds           { grid-area: odds; }
+  .fixture__pick  { grid-area: pick; }
+  .disclose       { grid-area: chev; justify-self: end; }
+  .fixture__detail-inner { padding-left: var(--s4); }
+  .skel-row > .skeleton:nth-child(n+4) { display: none; }
+}
+
+@media (max-width: 620px) {
+  .masthead { height: auto; min-height: 52px; flex-wrap: wrap; padding: var(--s2) var(--s4); }
+  /* The nav scrolls sideways at this width; the fade is the only cue that
+     there is more of it, since the scrollbar is hidden. */
+  .mainnav {
+    order: 3; width: 100%; margin: 0 calc(-1 * var(--s4)); padding: 0 var(--s4) var(--s2);
+    mask-image: linear-gradient(90deg, #000 0 calc(100% - 28px), transparent 100%);
+  }
+  .masthead__end { margin-left: auto; }
+  .toolbar__end { margin-left: 0; width: 100%; }
+  .search input { width: 100%; }
+  .view__head h1 { font-size: var(--text-xl); }
+}
+
+/* ---------- 13. Reduced motion ------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton { animation: none; background: var(--surface-2); }
+}
+
+/* ---------- 14. Print / forced colors ------------------------------------ */
+
+@media print {
+  .masthead, .rail, .toolbar, .disclose { display: none !important; }
+  .shell { max-width: none; padding: 0; }
+  .fixtures, .table-wrap, .panel { border-color: #999; box-shadow: none; }
+  .fixture__detail { grid-template-rows: 1fr !important; }
+}
+
+@media (forced-colors: active) {
+  .probbar > i, .swatch, .meter__fill, .divbar i, .outcome__bar i { forced-color-adjust: none; }
+  .fixture__summary:hover, .rail__item[aria-pressed="true"] { border: 1px solid; }
+}

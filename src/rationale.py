@@ -22,11 +22,16 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 
-DATA_SCOPE_NOTE = (
-    "Built from Elo ratings, the Dixon-Coles goal model, and actual historical "
-    "results/head-to-head in our dataset. Does not include injuries, "
-    "suspensions, or transfer/signings news — no such feed is integrated in "
-    "this build, so none of that is guessed at here."
+_SCOPE_TAIL = (
+    " and actual historical results/head-to-head in our dataset. Does not "
+    "include injuries, suspensions, or roster/transfer news: no such feed is "
+    "integrated in this build, so none of that is guessed at here."
+)
+# Kept per-sport because the models genuinely differ — quoting the goal model
+# on an NBA card would be describing something that never ran.
+DATA_SCOPE_NOTE = "Built from Elo ratings, the Dixon-Coles goal model," + _SCOPE_TAIL
+DATA_SCOPE_NOTE_BASKETBALL = (
+    "Built from Elo ratings, the gradient-boosted margin/total model," + _SCOPE_TAIL
 )
 
 
@@ -241,5 +246,5 @@ def build_basketball_rationale(home: str, away: str, prediction: dict) -> dict:
         "away_form": away_form,
         "h2h": h2h,
         "narrative": bullets,
-        "data_scope": DATA_SCOPE_NOTE,
+        "data_scope": DATA_SCOPE_NOTE_BASKETBALL,
     }
