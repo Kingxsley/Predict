@@ -32,6 +32,7 @@ Grading design (rewritten — the previous version never graded anything):
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 from datetime import date, datetime, timezone
@@ -42,7 +43,13 @@ import config
 import football_data as fd
 import http_budget
 
-LOG_PATH = config.DATA_DIR / "prediction_log.json"
+# Where the log lives. Defaults inside data/, but a deployment should point
+# this at a mounted volume: without one the log is wiped on every redeploy,
+# so a track record can never accumulate past the last deploy. It must NOT
+# be data/ itself on such a deployment — mounting a volume over data/ would
+# shadow the committed parquet files the models read at request time.
+LOG_PATH = Path(os.environ.get("PREDICTION_LOG_PATH",
+                               str(config.DATA_DIR / "prediction_log.json")))
 
 GRADE_AFTER_DAYS = 1        # don't look for a result until the day after kick-off
 MAX_GRADE_ATTEMPTS = 8      # write off as "unresolved" after this many answered-but-absent passes

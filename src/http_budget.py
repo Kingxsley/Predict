@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import threading
 import time
@@ -40,6 +41,15 @@ from typing import Any, Optional
 import config
 
 CACHE_DIR = config.DATA_DIR / "http_cache"
+
+# Squiggle rejects requests whose User-Agent doesn't identify the caller,
+# answering 403 with {"error": "bad_UA"}, and its documentation asks for an
+# app name plus a contact. Overridable via env so a deployment can supply a
+# real contact address without that address living in a public repo.
+USER_AGENT = os.environ.get(
+    "HTTP_USER_AGENT",
+    "PredictPro/1.0 (+https://predict-pro.up.railway.app)",
+)
 
 
 class RateBudget:
@@ -169,6 +179,32 @@ def _raw_get(url: str, headers: dict, timeout: float) -> Any:
 _WAIT_RE = re.compile(r"[Ww]ait\s+(\d+)\s*second")
 
 
+def _error_body(err: urllib.error.HTTPError, limit: int = 160) -> str:
+    """A short, human-readable snippet of an error response, for the UI."""
+    try:
+        raw = err.read().decode("utf-8", "replace").strip()
+    except Exception:
+        return ""
+    if not raw:
+        return ""
+    try:  # most of these APIs return JSON with a message/error/warning field
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            for field in ("message", "error", "warning", "detail"):
+                if parsed.get(field):
+                    return str(parsed[field])[:limit]
+        # Squiggle nests its complaint inside the requested collection.
+        if isinstance(parsed, dict):
+            for value in parsed.values():
+                if isinstance(value, list) and value and isinstance(value[0], dict):
+                    for field in ("error", "warning", "message"):
+                        if value[0].get(field):
+                            return str(value[0][field])[:limit]
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return " ".join(raw.split())[:limit]
+
+
 def _retry_after_seconds(err: urllib.error.HTTPError) -> float | None:
     """How long the server says to wait, from Retry-After or from
     football-data.org's plain-English 429 body."""
@@ -205,7 +241,7 @@ def get_json(
     preference is fresh cache, then a live call, then stale cache.
     """
     key = cache_key or url
-    headers = {"User-Agent": "sports-predictor/1.0 (+https://predict-pro.up.railway.app)", **(headers or {})}
+    headers = {"User-Agent": USER_AGENT, **(headers or {})}
     started = time.monotonic()
 
     cached, cached_ts = _read_cache(key)
@@ -237,7 +273,15 @@ def get_json(
                     return Fetched(data, "fresh", 0.0)
                 except Exception as retry_err:
                     e = retry_err if isinstance(retry_err, urllib.error.HTTPError) else e
-        detail = f"HTTP {getattr(e, 'code', '?')}" + (" (rate limited)" if getattr(e, "code", None) == 429 else "")
+        # Include what the server actually said. "HTTP 403" tells an operator
+        # nothing; "HTTP 403: bad_UA" points straight at the fix.
+        detail = f"HTTP {getattr(e, 'code', '?')}"
+        if getattr(e, "code", None) == 429:
+            detail += " (rate limited)"
+        else:
+            body = _error_body(e)
+            if body:
+                detail += f": {body}"
         if cached is not None and stale_ok:
             return Fetched(cached, "stale", age, detail)
         return Fetched(None, "missing", age, detail)
