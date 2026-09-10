@@ -46,6 +46,10 @@ THESPORTSDB_KEY = "3"  # shared free "test" key
 BASE = f"https://www.thesportsdb.com/api/v1/json/{THESPORTSDB_KEY}"
 LEAGUE_ID_CACHE_PATH = config.DATA_DIR / "league_id_map.json"
 FIXTURE_CACHE_TTL_SECONDS = 20 * 60
+# How long an INCOMPLETE board is held before it is retried. Long enough not
+# to hammer a provider that just refused us, short enough that a cold-start
+# race repairs itself in a minute or two rather than persisting a full window.
+RETRY_TTL_SECONDS = 90
 
 # TheSportsDB league IDs for divisions football-data.org's free tier misses.
 # Verified against its all_leagues list; anything absent here simply has no
@@ -60,7 +64,7 @@ THESPORTSDB_LEAGUE_IDS = {
     "ARG": "4406",   # Argentina - Primera Division
 }
 
-_cache = {"ts": 0.0, "data": None}
+_cache = {"ts": 0.0, "data": None, "ttl": FIXTURE_CACHE_TTL_SECONDS}
 
 
 def _normalize(name: str) -> str:
@@ -210,7 +214,7 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
     """
     now = time.time()
     if not force_refresh and _cache["data"] is not None and \
-            (now - _cache["ts"]) < FIXTURE_CACHE_TTL_SECONDS:
+            (now - _cache["ts"]) < _cache.get("ttl", FIXTURE_CACHE_TTL_SECONDS):
         return _cache["data"]
 
     result: dict = {"soccer": {}, "afl": {"league": "AFL", "fixtures": []},
@@ -320,7 +324,16 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
         "budgets": http_budget.budget_status(),
     }
 
+    # An incomplete board must not be cached for the full window. A cold
+    # container has no warm request budget and no disk cache to fall back on,
+    # so the leagues that lose the race come back as errors — and pinning that
+    # partial result for twenty minutes means every visitor sees a board with
+    # competitions missing, when a retry a minute later would succeed. Cache
+    # the incomplete answer just long enough to avoid hammering the provider,
+    # then let it heal itself.
+    incomplete = any(c["state"] == "error" for c in result["coverage"])
     _cache["ts"] = now
+    _cache["ttl"] = RETRY_TTL_SECONDS if incomplete else FIXTURE_CACHE_TTL_SECONDS
     _cache["data"] = result
     return result
 
