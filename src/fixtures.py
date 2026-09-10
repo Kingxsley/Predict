@@ -20,6 +20,7 @@ Each league ends up in exactly one coverage state:
     live        - fetched fresh or from a warm cache, with fixtures
     stale       - served from cache because the refresh could not be made
     no-fixtures - the source answered, but listed nothing in the window
+    snapshot    - the live feed refused this host; serving a build-time capture
     unsupported - no free feed carries this competition's fixtures
     unconfigured- a feed covers it, but this server has no API key for it
     error       - the source answered with something unusable
@@ -265,7 +266,14 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
             result["afl"]["fixtures"] = fixtures
             result["afl"]["source"] = "squiggle"
             result["afl"]["stale"] = afl_res.is_stale
-            state = "no-fixtures" if not fixtures else ("stale" if afl_res.is_stale else "live")
+            if not fixtures:
+                state = "no-fixtures"
+            elif afl_res.status == "snapshot":
+                state = "snapshot"
+            elif afl_res.is_stale:
+                state = "stale"
+            else:
+                state = "live"
             result["coverage"].append(_coverage(
                 "AFL", "AFL", state, len(fixtures), "squiggle",
                 detail=("The AFL season runs March to September, so there are "

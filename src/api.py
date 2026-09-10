@@ -31,6 +31,7 @@ import fixtures as live_fixtures
 import tracking
 import accumulator as acca
 import odds_provider as odds
+import store
 
 app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 
@@ -38,6 +39,18 @@ app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 # stylesheet and one ES module, served from web/ and mounted at /assets.
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    """Pick the log backend once, and carry over anything an earlier
+    file-backed deploy had already written."""
+    backend = store.init()
+    if backend == "postgres":
+        moved = store.migrate_json_into_db()
+        if moved:
+            print(f"[store] imported {moved} entries from the on-disk log")
+    print(f"[store] prediction log backend: {backend}")
 
 
 @app.get("/api/soccer/leagues")
@@ -204,6 +217,7 @@ def status():
         return {
             "coverage": data.get("coverage", []),
             "summary": data.get("summary", {}),
+            "storage": store.backend(),
             "generated_at": data.get("generated_at"),
         }
     except Exception as e:

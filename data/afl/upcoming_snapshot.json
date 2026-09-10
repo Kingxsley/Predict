@@ -1,0 +1,27 @@
+{
+  "captured_at": "2026-09-10",
+  "events": [
+    {
+      "dateEvent": "2026-09-11",
+      "strTime": "10:10:00",
+      "strHomeTeam": "Fremantle",
+      "strAwayTeam": "Geelong",
+      "provider": "squiggle",
+      "providerId": "38725",
+      "venue": "Perth Stadium",
+      "round": "Semi-Finals",
+      "is_final": true
+    },
+    {
+      "dateEvent": "2026-09-12",
+      "strTime": "09:35:00",
+      "strHomeTeam": "Brisbane Lions",
+      "strAwayTeam": "Adelaide",
+      "provider": "squiggle",
+      "providerId": "38726",
+      "venue": "Gabba",
+      "round": "Semi-Finals",
+      "is_final": true
+    }
+  ]
+}

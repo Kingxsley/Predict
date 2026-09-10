@@ -284,6 +284,7 @@ const COVERAGE_COPY = {
   live:          { tone: "pos",  label: "Live" },
   stale:         { tone: "warn", label: "Cached" },
   "no-fixtures": { tone: "mute", label: "None listed" },
+  snapshot:      { tone: "warn", label: "Snapshot" },
   unsupported:   { tone: "mute", label: "No feed" },
   unconfigured:  { tone: "warn", label: "No API key" },
   error:         { tone: "neg",  label: "Error" },
@@ -298,7 +299,7 @@ function renderCoverage() {
   const notLive = cov.filter((c) => c.state !== "live");
   if (!notLive.length) { box.innerHTML = ""; return; }
 
-  const order = ["error", "unconfigured", "stale", "no-fixtures", "unsupported"];
+  const order = ["error", "unconfigured", "snapshot", "stale", "no-fixtures", "unsupported"];
   const rows = [...notLive].sort(
     (a, b) => order.indexOf(a.state) - order.indexOf(b.state));
 

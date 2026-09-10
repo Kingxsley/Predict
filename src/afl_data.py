@@ -14,11 +14,24 @@ caches aggressively, since a completed season never changes again.
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+import config
 import http_budget
 
 BASE = "https://api.squiggle.com.au"
+
+# Squiggle sits behind Cloudflare and blocks datacenter IP ranges: the same
+# request that succeeds from a laptop returns a Cloudflare 403 HTML page from
+# a cloud host. That is a deliberate anti-abuse control and is not something
+# to work around, so instead `ingest_afl.py` captures the upcoming fixture
+# list from a permitted network and commits it, and this module falls back to
+# that snapshot when the live call is refused. The snapshot is always
+# labelled as such in the UI, with its capture date, so nobody mistakes it
+# for a live read.
+SNAPSHOT_PATH = config.DATA_DIR / "afl" / "upcoming_snapshot.json"
 
 # The competition has been eighteen clubs and a stable finals structure since
 # 2012; going back further mixes in eras with different team counts, a
@@ -118,9 +131,42 @@ def fetch_upcoming(max_wait: float = 0.0) -> http_budget.Fetched:
             break
 
     if not events and error:
+        snapshot = load_snapshot()
+        if snapshot is not None:
+            return snapshot
         return http_budget.Fetched(None, "missing", age, error)
     events.sort(key=lambda e: (e["dateEvent"] or "", e["strTime"] or ""))
     return http_budget.Fetched(events, status if events else "fresh", age, error)
+
+
+def load_snapshot() -> http_budget.Fetched | None:
+    """The committed fixture snapshot, filtered to games still ahead of us.
+    Returns None when there is no snapshot or nothing in it is still to come."""
+    if not SNAPSHOT_PATH.exists():
+        return None
+    try:
+        blob = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    events = [e for e in blob.get("events", []) if (e.get("dateEvent") or "") >= today]
+    if not events:
+        return None
+    captured = blob.get("captured_at", "an earlier build")
+    return http_budget.Fetched(
+        events, "snapshot", 0.0,
+        f"Live feed unreachable from this host; showing the fixture captured at build time ({captured}).")
+
+
+def write_snapshot(events: list[dict]) -> Path:
+    """Called by the ingest script from a network Squiggle permits."""
+    SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SNAPSHOT_PATH.write_text(json.dumps({
+        "captured_at": datetime.now(timezone.utc).date().isoformat(),
+        "events": events,
+    }, indent=2), encoding="utf-8")
+    return SNAPSHOT_PATH
 
 
 def fetch_results(year: int, max_wait: float = 0.0) -> http_budget.Fetched:

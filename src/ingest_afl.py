@@ -62,6 +62,16 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)
 
+    # Capture the upcoming fixture too. Squiggle blocks datacenter IPs, so the
+    # deployed instance cannot read this itself; committing what we fetch here
+    # from a permitted network is what keeps the AFL board populated there.
+    upcoming = afl_data.fetch_upcoming(max_wait=30)
+    if upcoming.ok and upcoming.data:
+        snap = afl_data.write_snapshot(upcoming.data)
+        print(f"Captured {len(upcoming.data)} upcoming fixtures to {snap}")
+    else:
+        print(f"No upcoming fixtures to snapshot ({upcoming.error or 'none scheduled'})")
+
     seasons = df["season"].nunique()
     print(f"\nWrote {len(df):,} matches across {seasons} seasons to {out}")
     print(f"  date range   : {df['date'].min().date()} to {df['date'].max().date()}")

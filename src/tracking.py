@@ -4,9 +4,10 @@ fixture, then grades each one against the real final score once the match has
 actually been played. Nothing here is simulated — grading only ever happens
 against a real result fetched from the provider that supplied the fixture.
 
-Persisted to data/prediction_log.json. Single-file, single-process; fine at
-this app's scale, but it lives on local disk, so a platform deploy without a
-persistent volume loses it on redeploy.
+Persistence goes through store.py: Postgres when DATABASE_URL is set, a JSON
+file otherwise. This matters more than it sounds — on a container platform
+the local disk is destroyed on every redeploy, so a file-backed log can never
+accumulate a track record past the most recent deploy.
 
 Grading design (rewritten — the previous version never graded anything):
 
@@ -42,19 +43,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 import football_data as fd
 import http_budget
+import store
 
-# Where the log lives. Defaults inside data/, but a deployment should point
-# this at a mounted volume: without one the log is wiped on every redeploy,
-# so a track record can never accumulate past the last deploy. It must NOT
-# be data/ itself on such a deployment — mounting a volume over data/ would
-# shadow the committed parquet files the models read at request time.
-LOG_PATH = Path(os.environ.get("PREDICTION_LOG_PATH",
-                               str(config.DATA_DIR / "prediction_log.json")))
-
-GRADE_AFTER_DAYS = 1        # don't look for a result until the day after kick-off
-MAX_GRADE_ATTEMPTS = 8      # write off as "unresolved" after this many answered-but-absent passes
+GRADE_AFTER_DAYS = 1          # don't look for a result until the day after kick-off
+MAX_GRADE_ATTEMPTS = 8        # write off as "unresolved" after this many answered-but-absent passes
 GRADE_INTERVAL_SECONDS = 300  # at most one grading sweep every 5 minutes
-AFL_TOTAL_LINE = 165.5      # benchmark total for the AFL over/under market
+AFL_TOTAL_LINE = config.AFL_TOTAL_LINE  # benchmark line for the AFL over/under market
 
 _write_lock = threading.Lock()
 _last_grade_at = 0.0
@@ -65,19 +59,7 @@ def _normalize(name: str) -> str:
 
 
 def _load() -> list[dict]:
-    if not LOG_PATH.exists():
-        return []
-    try:
-        return json.loads(LOG_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-
-
-def _save(entries: list[dict]) -> None:
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = LOG_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(entries, indent=2), encoding="utf-8")
-    tmp.replace(LOG_PATH)
+    return store.load_all()
 
 
 def _fixture_key(sport: str, div: str | None, ev_date: str | None, home: str, away: str) -> str:
@@ -91,66 +73,56 @@ def record_soccer(div: str, league: str, ev: dict, home_raw: str, away_raw: str,
     if "error" in prediction:
         return
     key = _fixture_key("soccer", div, ev.get("dateEvent"), home_raw, away_raw)
-    with _write_lock:
-        entries = _load()
-        if any(e["key"] == key for e in entries):
-            return
-        probs_1x2 = {
-            "H": prediction["prob_home_win"],
-            "D": prediction["prob_draw"],
-            "A": prediction["prob_away_win"],
-        }
-        entries.append({
-            "key": key, "sport": "soccer", "div": div, "league": league,
-            "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
-            "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
-            "logged_at": datetime.now(timezone.utc).isoformat(),
-            "markets": {
-                "1x2": {"pick": max(probs_1x2, key=probs_1x2.get), "probs": probs_1x2},
-                "btts": {
-                    "pick": "YES" if prediction["prob_btts_yes"] >= 0.5 else "NO",
-                    "probs": {"YES": prediction["prob_btts_yes"], "NO": prediction["prob_btts_no"]},
-                },
-                "over_under_2_5": {
-                    "pick": "OVER" if prediction["prob_over_2_5"] >= 0.5 else "UNDER",
-                    "probs": {"OVER": prediction["prob_over_2_5"], "UNDER": prediction["prob_under_2_5"]},
-                },
+    probs_1x2 = {
+        "H": prediction["prob_home_win"],
+        "D": prediction["prob_draw"],
+        "A": prediction["prob_away_win"],
+    }
+    store.insert_if_absent({
+        "key": key, "sport": "soccer", "div": div, "league": league,
+        "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
+        "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
+        "logged_at": datetime.now(timezone.utc).isoformat(),
+        "markets": {
+            "1x2": {"pick": max(probs_1x2, key=probs_1x2.get), "probs": probs_1x2},
+            "btts": {
+                "pick": "YES" if prediction["prob_btts_yes"] >= 0.5 else "NO",
+                "probs": {"YES": prediction["prob_btts_yes"], "NO": prediction["prob_btts_no"]},
             },
-            "graded": False, "attempts": 0, "graded_at": None,
-            "actual_home_score": None, "actual_away_score": None,
-        })
-        _save(entries)
+            "over_under_2_5": {
+                "pick": "OVER" if prediction["prob_over_2_5"] >= 0.5 else "UNDER",
+                "probs": {"OVER": prediction["prob_over_2_5"], "UNDER": prediction["prob_under_2_5"]},
+            },
+        },
+        "graded": False, "attempts": 0, "graded_at": None,
+        "actual_home_score": None, "actual_away_score": None,
+    })
 
 
 def record_afl(ev: dict, home_raw: str, away_raw: str, prediction: dict) -> None:
     if "error" in prediction:
         return
     key = _fixture_key("afl", None, ev.get("dateEvent"), home_raw, away_raw)
-    with _write_lock:
-        entries = _load()
-        if any(e["key"] == key for e in entries):
-            return
-        h2h = {"HOME": prediction["prob_home_win"], "AWAY": prediction["prob_away_win"]}
-        entries.append({
-            "key": key, "sport": "afl", "div": None, "league": "AFL",
-            "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
-            "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
-            "logged_at": datetime.now(timezone.utc).isoformat(),
-            "markets": {
-                "h2h": {"pick": max(h2h, key=h2h.get), "probs": h2h},
-                "total_points": {
-                    "pick": "OVER" if prediction["prob_over_total"] >= 0.5 else "UNDER",
-                    "line": AFL_TOTAL_LINE,
-                    "probs": {"OVER": prediction["prob_over_total"],
-                              "UNDER": prediction["prob_under_total"]},
-                },
+    h2h = {"HOME": prediction["prob_home_win"], "AWAY": prediction["prob_away_win"]}
+    store.insert_if_absent({
+        "key": key, "sport": "afl", "div": None, "league": "AFL",
+        "date": ev.get("dateEvent"), "home": home_raw, "away": away_raw,
+        "provider": ev.get("provider"), "provider_id": ev.get("providerId"),
+        "logged_at": datetime.now(timezone.utc).isoformat(),
+        "markets": {
+            "h2h": {"pick": max(h2h, key=h2h.get), "probs": h2h},
+            "total_points": {
+                "pick": "OVER" if prediction["prob_over_total"] >= 0.5 else "UNDER",
+                "line": AFL_TOTAL_LINE,
+                "probs": {"OVER": prediction["prob_over_total"],
+                          "UNDER": prediction["prob_under_total"]},
             },
-            "predicted_margin_home": prediction.get("predicted_margin_home"),
-            "predicted_total_points": prediction.get("predicted_total_points"),
-            "graded": False, "attempts": 0, "graded_at": None,
-            "actual_home_score": None, "actual_away_score": None,
-        })
-        _save(entries)
+        },
+        "predicted_margin_home": prediction.get("predicted_margin_home"),
+        "predicted_total_points": prediction.get("predicted_total_points"),
+        "graded": False, "attempts": 0, "graded_at": None,
+        "actual_home_score": None, "actual_away_score": None,
+    })
 
 
 # ----------------------------------------------------------------- grading
@@ -230,11 +202,14 @@ def grade_pending(force: bool = False) -> dict:
         entries = _load()
         pending = _pending(entries)
         if not pending:
-            return {"ran": True, "pending": 0, "graded": 0, "queried": []}
+            return {"ran": True, "pending": 0, "graded": 0, "queried": [],
+                    "store": store.backend()["backend"]}
 
         graded = 0
         queried: list[str] = []
-        changed = False
+        # Only the rows that actually changed get written back, keyed so an
+        # entry touched twice in one sweep is still written once.
+        dirty: dict[str, dict] = {}
 
         # --- soccer, one bulk query per division ---------------------------
         by_div: dict[str, list[dict]] = {}
@@ -260,7 +235,7 @@ def grade_pending(force: bool = False) -> dict:
                     graded += 1
                 else:
                     e["attempts"] = e.get("attempts", 0) + 1
-                changed = True
+                dirty[e["key"]] = e
 
         # --- AFL, one bulk query per season --------------------------------
         afl_pending = [e for e in pending if e["sport"] == "afl"]
@@ -282,21 +257,23 @@ def grade_pending(force: bool = False) -> dict:
                         graded += 1
                     else:
                         e["attempts"] = e.get("attempts", 0) + 1
-                    changed = True
+                    dirty[e["key"]] = e
 
         # --- write off anything that has been asked about too many times ---
         for e in pending:
             if not e.get("graded") and e.get("attempts", 0) >= MAX_GRADE_ATTEMPTS:
                 e["graded"] = True          # resolved-as-unresolvable
                 e["graded_at"] = datetime.now(timezone.utc).isoformat()
-                changed = True
+                dirty[e["key"]] = e
 
-        # Save on ANY change, including a bare attempt increment. Not doing
-        # this is what froze the entire log at attempts=0.
-        if changed:
-            _save(entries)
+        # Write back on ANY change, including a bare attempt increment.
+        # Persisting only successful grades is what froze the whole log at
+        # attempts=0 and stopped it ever making progress.
+        written = store.upsert_many(list(dirty.values()))
 
-        return {"ran": True, "pending": len(pending), "graded": graded, "queried": queried}
+        return {"ran": True, "pending": len(pending), "graded": graded,
+                "written": written, "queried": queried,
+                "store": store.backend()["backend"]}
 
 
 # -------------------------------------------------------------- reporting
@@ -340,4 +317,5 @@ def get_log(grade: bool = True) -> dict:
             "afl_margin_mae": _mae(afl, "predicted_margin_home", "actual_margin_home"),
         },
         "grading": report,
+        "storage": store.backend(),
     }

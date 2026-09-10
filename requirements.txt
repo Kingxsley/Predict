@@ -12,3 +12,6 @@ fastapi>=0.110
 uvicorn>=0.29
 python-multipart>=0.0.9
 requests>=2.31
+# Prediction-log persistence. Optional at runtime: without DATABASE_URL the
+# log falls back to a JSON file, so local development needs no database.
+psycopg[binary]>=3.1
