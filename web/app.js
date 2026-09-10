@@ -174,14 +174,28 @@ function initNav() {
   });
 }
 
+/* ---------- performance panes -------------------------------------------- */
+
+function selectPerfPane(which) {
+  for (const tab of $$("#perf-tabs [role=tab]")) {
+    const on = tab.id === `tab-${which}`;
+    tab.setAttribute("aria-selected", String(on));
+    $(`#${tab.getAttribute("aria-controls")}`).hidden = !on;
+  }
+}
+
 /* ---------- routing ------------------------------------------------------ */
 
-const VIEWS = ["board", "matchup", "accumulator", "record", "backtest"];
+const VIEWS = ["board", "matchup", "performance"];
 const loaded = new Set();
+
+// Destinations that used to be their own view. Kept so existing links and
+// bookmarks land somewhere sensible instead of silently falling back.
+const MOVED = { record: "performance", backtest: "performance", accumulator: "board" };
 
 function route() {
   const want = location.hash.replace("#", "");
-  const view = VIEWS.includes(want) ? want : "board";
+  const view = VIEWS.includes(want) ? want : (MOVED[want] || "board");
   for (const v of VIEWS) $(`#view-${v}`).hidden = v !== view;
   for (const a of $$(".mainnav a")) {
     if (a.dataset.view === view) a.setAttribute("aria-current", "page");
@@ -189,10 +203,11 @@ function route() {
   }
   if (!loaded.has(view)) {
     loaded.add(view);
-    if (view === "record") loadRecord();
-    if (view === "backtest") loadBacktest();
     if (view === "matchup") initMatchup();
+    if (view === "performance") { loadRecord(); loadBacktest(); }
   }
+  if (want === "backtest") selectPerfPane("backtest");
+  if (want === "accumulator") $("#acca-tool")?.setAttribute("open", "");
 }
 
 /* ==========================================================================
@@ -212,6 +227,7 @@ async function loadBoard(force = false) {
     board.data = await getJSON("/api/fixtures/live" + (force ? "?refresh=true" : ""));
     renderRail();
     renderBoard(true);
+    renderSummary();
     renderCoverage();
     const s = board.data.summary || {};
     setStatus(s.leagues_live > 0 ? "ok" : "stale",
@@ -331,9 +347,9 @@ function renderBoard(animate = false) {
   }
 
   const total = boardGroups().reduce((n, g) => n + g.fixtures.length, 0);
-  $("#board-meta").textContent = shown === total
-    ? `${total} fixture${total === 1 ? "" : "s"} on the board`
-    : `${shown} of ${total} fixtures shown`;
+  const meta = $("#board-meta");
+  meta.textContent = shown === total ? "" : `Showing ${shown} of ${total} fixtures`;
+  meta.hidden = shown === total;
   updateFilterCount();
 }
 
@@ -349,6 +365,40 @@ const COVERAGE_COPY = {
   unconfigured:  { tone: "warn", label: "No API key" },
   error:         { tone: "neg",  label: "Error" },
 };
+
+function renderSummary() {
+  const d = board.data;
+  if (!d) return;
+  const s = d.summary || {};
+  const cov = d.coverage || [];
+
+  $("#sum-fixtures").textContent = s.total_fixtures ?? "–";
+  $("#sum-feeds").textContent = `${s.leagues_live ?? 0}/${s.leagues_total ?? 0}`;
+
+  // Earliest kick-off still ahead of us, across both sports.
+  const now = Date.now();
+  const upcoming = boardGroups()
+    .flatMap((g) => g.fixtures)
+    .map((f) => new Date(`${f.date}T${f.time || "00:00:00"}Z`).getTime())
+    .filter((t) => Number.isFinite(t) && t > now)
+    .sort((a, b) => a - b);
+  $("#sum-next").textContent = upcoming.length
+    ? new Date(upcoming[0]).toLocaleString(undefined,
+        { weekday: "short", hour: "2-digit", minute: "2-digit" })
+    : "–";
+
+  // Model health is the honest one. Reported as a count of stale models
+  // rather than a ratio, because a ratio here reads identically to the feed
+  // ratio beside it and the two mean completely different things.
+  const stale = cov.filter((c) => c.model_stale).length;
+  const el = $("#sum-health");
+  el.textContent = stale ? String(stale) : "0";
+  el.dataset.tone = stale ? "warn" : "pos";
+  $("#sum-health-label").textContent = stale === 1 ? "Stale model" : "Stale models";
+  el.title = stale
+    ? `${stale} competition${stale === 1 ? "" : "s"} priced by a model that has not seen a match in over 60 days`
+    : "Every model trained within the last 60 days";
+}
 
 function renderCoverage() {
   const box = $("#board-coverage");
@@ -1342,7 +1392,13 @@ function init() {
     $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") runAFL(); });
   }
 
-  /* --- accumulator --- */
+  /* --- performance panes --- */
+  $("#perf-tabs").addEventListener("click", (ev) => {
+    const tab = ev.target.closest("[role=tab]");
+    if (tab) selectPerfPane(tab.id.replace("tab-", ""));
+  });
+
+  /* --- accumulator (now a Board tool) --- */
   $("#acca-build").addEventListener("click", buildAccumulator);
 
   /* --- track record --- */

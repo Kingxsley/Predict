@@ -47,6 +47,8 @@
     <path d="M4 4l8 8M12 4l-8 8"/></symbol>
   <symbol id="i-download" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 2v8M4.5 7 8 10.5 11.5 7M2.5 13.5h11"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 1.8 1.8 5 8 8.2 14.2 5 8 1.8Z"/><path d="M1.8 8 8 11.2 14.2 8"/><path d="M1.8 11 8 14.2 14.2 11"/></symbol>
   <symbol id="i-filter" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
     <path d="M2 4h12M4.5 8h7M6.5 12h3"/></symbol>
 </svg>
@@ -63,9 +65,7 @@
   <nav class="mainnav" id="mainnav" aria-label="Sections">
     <a href="#board" data-view="board">Board</a>
     <a href="#matchup" data-view="matchup">Matchup</a>
-    <a href="#accumulator" data-view="accumulator">Accumulator</a>
-    <a href="#record" data-view="record">Track record</a>
-    <a href="#backtest" data-view="backtest">Backtest</a>
+    <a href="#performance" data-view="performance">Performance</a>
   </nav>
 
   <div class="masthead__end">
@@ -144,15 +144,67 @@
       </details>
 
       <div>
-        <div class="toolbar">
-          <p class="hint" id="board-meta" aria-live="polite">Loading the board…</p>
-          <div class="toolbar__end">
+        <!-- A product opens on a summary, not a bare table. These four
+             read the state of the whole board at a glance, including the
+             one that is uncomfortable (stale models). -->
+        <div class="summary" id="board-summary" aria-live="polite">
+          <div class="summary__stat">
+            <span class="summary__value" id="sum-fixtures">–</span>
+            <span class="summary__label">Fixtures</span>
+          </div>
+          <div class="summary__stat">
+            <span class="summary__value" id="sum-feeds">–</span>
+            <span class="summary__label">Feeds live</span>
+          </div>
+          <div class="summary__stat">
+            <span class="summary__value" id="sum-next">–</span>
+            <span class="summary__label">Next start</span>
+          </div>
+          <div class="summary__stat">
+            <span class="summary__value" id="sum-health">–</span>
+            <span class="summary__label" id="sum-health-label">Stale models</span>
+          </div>
+          <div class="summary__actions">
             <button class="btn btn--secondary" id="board-refresh" type="button">
               <svg class="spin" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh
             </button>
           </div>
         </div>
+        <p class="hint" id="board-meta" aria-live="polite" hidden></p>
         <div id="board-coverage"></div>
+
+        <!-- Accumulator, folded into the Board. It only ever operated on
+             what is already on this board, so a separate destination made
+             the user navigate away to act on what they were looking at. -->
+        <details class="tool" id="acca-tool">
+          <summary class="tool__toggle">
+            <svg aria-hidden="true"><use href="#i-layers"/></svg>
+            <span>Accumulator builder</span>
+            <span class="tool__hint">Combine fixtures from this board</span>
+          </summary>
+          <div class="tool__body">
+            <p class="hint" style="margin-bottom:1rem">
+              Finds the combination of fixtures with the highest joint probability that still clears
+              your target price. Headline odds are model-implied (1 ÷ probability); a real bookmaker
+              price is shown separately where one could be found.
+            </p>
+<div class="panel">
+      <div class="panel__body">
+        <div class="form-grid form-grid--tight">
+          <div class="field"><label for="acca-legs">Legs</label><input type="number" id="acca-legs" value="3" min="2" max="6" step="1" inputmode="numeric"></div>
+          <div class="field"><label for="acca-min-odds">Min combined odds</label><input type="number" id="acca-min-odds" value="5.0" min="1.1" step="0.5" inputmode="decimal"></div>
+          <div class="field"><label for="acca-from">From</label><input type="date" id="acca-from"></div>
+          <div class="field"><label for="acca-to">To</label><input type="date" id="acca-to"></div>
+          <div class="field" style="justify-content:flex-end">
+            <button class="btn" type="button" id="acca-build">Build</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="acca-content" aria-live="polite"></div>
+  
+          </div>
+        </details>
         <div id="board-content"></div>
       </div>
     </div>
@@ -271,45 +323,26 @@
   </section>
 
   <!-- ================= ACCUMULATOR ================= -->
-  <section class="view" id="view-accumulator" aria-labelledby="acca-title" hidden>
+  <section class="view" id="view-performance" aria-labelledby="perf-title" hidden>
     <div class="view__head">
-      <h1 id="acca-title">Accumulator builder</h1>
+      <h1 id="perf-title">Performance</h1>
       <p class="view__lede">
-        Searches the current board for the combination of fixtures whose joint probability is highest
-        while still clearing your target price. The headline odds are model-implied
-        (1 ÷ probability). Where a real bookmaker price could be found it is shown separately and
-        labelled as such; the two are never mixed.
+        How the model has actually done: graded results from predictions this app made, and held-out
+        historical accuracy from the training runs. Both are unedited.
       </p>
     </div>
 
-    <div class="panel">
-      <div class="panel__body">
-        <div class="form-grid form-grid--tight">
-          <div class="field"><label for="acca-legs">Legs</label><input type="number" id="acca-legs" value="3" min="2" max="6" step="1" inputmode="numeric"></div>
-          <div class="field"><label for="acca-min-odds">Min combined odds</label><input type="number" id="acca-min-odds" value="5.0" min="1.1" step="0.5" inputmode="decimal"></div>
-          <div class="field"><label for="acca-from">From</label><input type="date" id="acca-from"></div>
-          <div class="field"><label for="acca-to">To</label><input type="date" id="acca-to"></div>
-          <div class="field" style="justify-content:flex-end">
-            <button class="btn" type="button" id="acca-build">Build</button>
-          </div>
-        </div>
-      </div>
+    <div class="segmented" role="tablist" aria-label="Performance view" id="perf-tabs">
+      <button type="button" role="tab" id="tab-record" aria-controls="pane-record" aria-selected="true">Track record</button>
+      <button type="button" role="tab" id="tab-backtest" aria-controls="pane-backtest" aria-selected="false">Backtest</button>
     </div>
-    <div id="acca-content" aria-live="polite"></div>
-  </section>
 
-  <!-- ================= TRACK RECORD ================= -->
-  <section class="view" id="view-record" aria-labelledby="record-title" hidden>
-    <div class="view__head">
-      <h1 id="record-title">Track record</h1>
-      <p class="view__lede">
+    <div id="pane-record" role="tabpanel" aria-labelledby="tab-record">
+      <p class="view__lede" style="margin-bottom:1.5rem">
         Every prediction shown on the board is logged once, then graded against the real final score
-        from the same feed that supplied the fixture. Nothing here is simulated, and nothing is
-        removed after the fact.
+        from the same feed that supplied the fixture. Nothing is simulated or removed after the fact.
       </p>
-    </div>
-
-    <details class="rail rail--inline" id="record-filters">
+<details class="rail rail--inline" id="record-filters">
       <summary class="rail__toggle">
         <svg aria-hidden="true"><use href="#i-filter"/></svg>
         <span>Filters</span>
@@ -336,20 +369,16 @@
     </details>
 
     <div id="log-content" aria-live="polite"></div>
-  </section>
-
-  <!-- ================= BACKTEST ================= -->
-  <section class="view" id="view-backtest" aria-labelledby="backtest-title" hidden>
-    <div class="view__head">
-      <h1 id="backtest-title">Backtest</h1>
-      <p class="view__lede">
-        Held-out historical performance. Soccer is scored against the de-vigged closing price from
-        real bookmaker data; the AFL is scored against held-out seasons and stated baselines. Lower
-        Brier and log-loss are better. These are the unedited contents of <code>reports/*.json</code>
-        as produced by the training runs.
-      </p>
     </div>
-    <div id="backtest-content" aria-live="polite"></div>
+
+    <div id="pane-backtest" role="tabpanel" aria-labelledby="tab-backtest" hidden>
+      <p class="view__lede" style="margin-bottom:1.5rem">
+        Held-out historical performance. Soccer is scored against the de-vigged closing price from
+        real bookmaker data; the AFL against held-out seasons and stated baselines. Lower Brier and
+        log-loss are better.
+      </p>
+<div id="backtest-content" aria-live="polite"></div>
+    </div>
   </section>
 
   <footer class="colophon">

@@ -185,7 +185,7 @@ code {
   color: var(--accent-text);
 }
 .brand__name {
-  font-size: var(--text-md); font-weight: 680; letter-spacing: -0.015em;
+  font-size: var(--text-md); font-weight: 700; letter-spacing: -0.02em;
   white-space: nowrap;
 }
 .brand__name span { color: var(--ink-3); font-weight: 500; }
@@ -194,7 +194,7 @@ code {
 .mainnav::-webkit-scrollbar { display: none; }
 .mainnav a {
   position: relative;
-  display: block; padding: var(--s2) var(--s3);
+  display: block; padding: var(--s2) var(--s4);
   font-size: var(--text-md); font-weight: 550; color: var(--ink-2);
   text-decoration: none; border-radius: var(--r-sm); white-space: nowrap;
   transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
@@ -416,6 +416,75 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--ink
 .meter__fill--pos { background: var(--pos); }
 .meter__fill--neg { background: var(--neg); }
 
+
+/* ---------- 6b. Board summary + inline tools ------------------------------
+   A product opens on a summary rather than a bare table. Four figures that
+   read the state of the whole board, including the uncomfortable one: how
+   many competitions are being priced by a model that has gone stale. */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: center; gap: var(--s5);
+  padding: var(--s4) var(--s5);
+  margin-bottom: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.summary__stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.summary__value {
+  font-size: var(--text-2xl); font-weight: 660; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.summary__value[data-tone="warn"] { color: var(--warn); }
+.summary__value[data-tone="pos"]  { color: var(--pos); }
+.summary__label {
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.summary__actions { display: flex; gap: var(--s2); }
+
+/* A tool that acts on what is already on screen, rather than a destination
+   the user has to navigate away to. */
+.tool {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); margin-bottom: var(--s4); overflow: hidden;
+}
+.tool__toggle {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s5); min-height: 48px;
+  font-size: var(--text-md); font-weight: 600; color: var(--ink);
+  cursor: pointer; list-style: none; user-select: none;
+  transition: background var(--dur-1) var(--ease);
+}
+.tool__toggle::-webkit-details-marker { display: none; }
+.tool__toggle:hover { background: var(--surface-2); }
+.tool__toggle > svg { width: 17px; height: 17px; color: var(--accent-text); flex-shrink: 0; }
+.tool__hint { font-size: var(--text-xs); font-weight: 500; color: var(--ink-3); }
+.tool__toggle::after {
+  content: ""; margin-left: auto; flex-shrink: 0;
+  width: 7px; height: 7px;
+  border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur-2) var(--ease);
+}
+.tool[open] > .tool__toggle::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.tool[open] > .tool__toggle { border-bottom: 1px solid var(--border); }
+.tool__body { padding: var(--s5); }
+.tool__body .panel { border: 0; box-shadow: none; background: transparent; }
+.tool__body .panel__body { padding: 0; }
+
+@media (max-width: 900px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+  .summary__actions { grid-column: 1 / -1; }
+  .summary__actions .btn { width: 100%; }
+  .tool__hint { display: none; }
+  .tool__toggle, .tool__body { padding-left: var(--s4); padding-right: var(--s4); }
+}
+
 /* ---------- 7. Fixture board --------------------------------------------- */
 
 .board { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: var(--s5); align-items: start; }
@@ -452,6 +521,9 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--ink
 .rail--inline { position: static; max-height: none; margin-bottom: var(--s4); }
 .rail--inline .rail__inner { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: var(--s3); }
 .rail--inline .field { width: 150px; }
+/* The sport segmented control needs its natural width; a fixed 150px clips
+   the last option off. */
+.rail--inline .field:has(.segmented) { width: auto; }
 .rail--inline .field--actions { flex-direction: row; gap: var(--s2); margin-left: auto; width: auto; }
 
 .league-block { margin-bottom: var(--s6); scroll-margin-top: 80px; }
