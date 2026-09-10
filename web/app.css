@@ -79,9 +79,13 @@
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-1: 120ms; --dur-2: 180ms; --dur-3: 240ms;
 
-  /* Semantic z-index scale — no arbitrary values anywhere in this file. */
-  --z-base: 0; --z-sticky: 100; --z-rail: 200; --z-header: 300;
-  --z-dropdown: 400; --z-toast: 500;
+  /* Semantic z-index scale — no arbitrary values anywhere in this file.
+     The nav scrim and panel sit BELOW the header on purpose: the panel hangs
+     under the masthead so they never overlap, and keeping the header on top
+     leaves the hamburger clickable to close the menu it opened. */
+  --z-base: 0; --z-sticky: 100; --z-rail: 200;
+  --z-nav-scrim: 250; --z-nav-panel: 260;
+  --z-header: 300; --z-dropdown: 400; --z-toast: 500;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -201,6 +205,38 @@ code {
 }
 
 .masthead__end { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+
+/* Hamburger. Hidden above the breakpoint; the nav is a plain row there. */
+.hamburger {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0;
+  background: transparent; border: 0; border-radius: var(--r);
+  color: var(--ink); cursor: pointer;
+  transition: background var(--dur-1) var(--ease);
+}
+.hamburger:hover { background: var(--surface-2); }
+.hamburger__bars { position: relative; display: block; width: 18px; height: 12px; }
+.hamburger__bars i {
+  position: absolute; left: 0; width: 100%; height: 2px;
+  background: currentColor; border-radius: 2px;
+  transition: transform var(--dur-2) var(--ease), opacity var(--dur-1) var(--ease);
+}
+.hamburger__bars i:nth-child(1) { top: 0; }
+.hamburger__bars i:nth-child(2) { top: 5px; }
+.hamburger__bars i:nth-child(3) { top: 10px; }
+/* Bars fold into a cross, so the control states whether the menu is open
+   rather than relying on the panel being visible. */
+.hamburger[aria-expanded="true"] .hamburger__bars i:nth-child(1) { transform: translateY(5px) rotate(45deg); }
+.hamburger[aria-expanded="true"] .hamburger__bars i:nth-child(2) { opacity: 0; }
+.hamburger[aria-expanded="true"] .hamburger__bars i:nth-child(3) { transform: translateY(-5px) rotate(-45deg); }
+
+.nav-scrim {
+  position: fixed; inset: 56px 0 0; z-index: var(--z-nav-scrim);
+  background: rgb(16 24 40 / 0.32);
+  backdrop-filter: blur(2px);
+}
+.nav-scrim[hidden] { display: none; }
 
 .model-status {
   display: inline-flex; align-items: center; gap: var(--s2);
@@ -832,15 +868,50 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .divbar { min-width: 120px; }
 }
 
-@media (max-width: 620px) {
-  .masthead { height: auto; min-height: 52px; flex-wrap: wrap; padding: var(--s2) var(--s4); }
-  /* The nav scrolls sideways at this width; the fade is the only cue that
-     there is more of it, since the scrollbar is hidden. */
+/* ---- Mobile navigation --------------------------------------------------
+   Five destinations do not fit across a phone masthead. The previous
+   treatment was a sideways-scrolling strip, which hid items behind a gesture
+   with only a fade to hint at them. A hamburger states plainly that there is
+   a menu, and the panel shows every destination at once. */
+@media (max-width: 760px) {
+  .hamburger { display: inline-flex; }
+
   .mainnav {
-    order: 3; width: 100%; margin: 0 calc(-1 * var(--s4)); padding: 0 var(--s4) var(--s2);
-    mask-image: linear-gradient(90deg, #000 0 calc(100% - 28px), transparent 100%);
+    position: fixed; z-index: var(--z-nav-panel);
+    top: 56px; left: 0; right: 0;
+    flex-direction: column; gap: 2px;
+    padding: var(--s2);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-3);
+    overflow: visible;
+
+    /* Collapsed by default. Transform + opacity rather than display, so the
+       open/close actually animates; visibility keeps it out of the tab order
+       and off screen readers while closed. */
+    visibility: hidden; opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity var(--dur-2) var(--ease),
+                transform var(--dur-2) var(--ease),
+                visibility 0s linear var(--dur-2);
   }
-  .mainnav a { padding: var(--s2) var(--s3); min-height: 40px; display: flex; align-items: center; }
+  .mainnav[data-open="true"] {
+    visibility: visible; opacity: 1; transform: translateY(0);
+    transition: opacity var(--dur-2) var(--ease),
+                transform var(--dur-2) var(--ease),
+                visibility 0s;
+  }
+
+  .mainnav a {
+    display: flex; align-items: center;
+    min-height: 48px; padding: 0 var(--s4);
+    font-size: var(--text-lg); border-radius: var(--r);
+  }
+  .mainnav a[aria-current="page"] { background: var(--accent-wash); }
+}
+
+@media (max-width: 620px) {
+  .masthead { min-height: 52px; padding: var(--s2) var(--s4); }
   .masthead__end { margin-left: auto; }
   .toolbar__end { margin-left: 0; width: 100%; }
   .toolbar__end .btn { flex: 1; }

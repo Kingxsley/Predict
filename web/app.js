@@ -119,6 +119,61 @@ function syncRails() {
   }
 }
 
+/* ---------- mobile navigation -------------------------------------------- */
+
+/** The hamburger menu. Deliberately more than a class toggle: a menu that
+ *  traps focus behind it, or that a keyboard user cannot dismiss, is worse
+ *  than the scrolling strip it replaced. */
+const nav = {
+  isMobile: () => matchMedia("(max-width: 760px)").matches,
+  isOpen: () => $("#nav-toggle").getAttribute("aria-expanded") === "true",
+};
+
+function setNavOpen(open, { restoreFocus = true } = {}) {
+  const toggle = $("#nav-toggle");
+  const panel = $("#mainnav");
+  const scrim = $("#nav-scrim");
+
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  panel.dataset.open = String(open);
+  scrim.hidden = !open;
+  // Stop the page scrolling underneath an open menu.
+  document.body.style.overflow = open ? "hidden" : "";
+
+  if (open) {
+    panel.querySelector("a")?.focus();
+  } else if (restoreFocus && panel.contains(document.activeElement)) {
+    toggle.focus();
+  }
+}
+
+function initNav() {
+  const toggle = $("#nav-toggle");
+  const panel = $("#mainnav");
+
+  toggle.addEventListener("click", () => setNavOpen(!nav.isOpen()));
+  $("#nav-scrim").addEventListener("click", () => setNavOpen(false));
+
+  // Navigating closes the menu; the hash change re-renders behind it.
+  panel.addEventListener("click", (ev) => {
+    if (ev.target.closest("a") && nav.isMobile()) setNavOpen(false, { restoreFocus: false });
+  });
+
+  addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && nav.isOpen()) {
+      ev.preventDefault();
+      setNavOpen(false);
+    }
+  });
+
+  // Widening past the breakpoint must not leave the body scroll-locked or the
+  // panel stranded open behind a hamburger that is no longer rendered.
+  matchMedia("(max-width: 760px)").addEventListener("change", (e) => {
+    if (!e.matches) setNavOpen(false, { restoreFocus: false });
+  });
+}
+
 /* ---------- routing ------------------------------------------------------ */
 
 const VIEWS = ["board", "matchup", "accumulator", "record", "backtest"];
@@ -1219,6 +1274,7 @@ function debounce(fn, ms) {
 
 function init() {
   initTheme();
+  initNav();
   syncRails();
   matchMedia("(min-width: 1081px)").addEventListener("change", syncRails);
   for (const rail of $$(".rail")) {

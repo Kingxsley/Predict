@@ -60,7 +60,7 @@
     <div class="brand__name">Prediction Engine <span>· soccer &amp; AFL</span></div>
   </div>
 
-  <nav class="mainnav" aria-label="Sections">
+  <nav class="mainnav" id="mainnav" aria-label="Sections">
     <a href="#board" data-view="board">Board</a>
     <a href="#matchup" data-view="matchup">Matchup</a>
     <a href="#accumulator" data-view="accumulator">Accumulator</a>
@@ -77,8 +77,16 @@
             aria-label="Switch to dark theme" title="Switch theme">
       <svg aria-hidden="true"><use href="#i-sun" id="theme-icon"/></svg>
     </button>
+    <button class="hamburger" id="nav-toggle" type="button"
+            aria-expanded="false" aria-controls="mainnav" aria-label="Open menu">
+      <span class="hamburger__bars" aria-hidden="true"><i></i><i></i><i></i></span>
+    </button>
   </div>
 </header>
+
+<!-- Backdrop for the mobile menu. Sits below the panel and above everything
+     else, so a tap anywhere outside the menu closes it. -->
+<div class="nav-scrim" id="nav-scrim" hidden></div>
 
 <main class="shell">
 
