@@ -1,0 +1,100 @@
+name: Refresh data and retrain
+
+# The models are committed pickles and Railway deploys from this repo, so
+# "keeping the predictions current" means re-ingesting, retraining, and
+# committing the artifacts. Doing that by hand is how the soccer models ended
+# up fifteen months stale while the app happily served predictions from them.
+#
+# Soccer runs monthly: the per-league Dixon-Coles fits are the slow part, team
+# strengths do not move meaningfully week to week, and the processed parquet
+# is ~10 MB per commit, so weekly runs would bloat the repository for very
+# little accuracy gain.
+#
+# The AFL fixture snapshot is tiny and changes every round, so it runs weekly
+# during the season — but see the note on the job itself: Squiggle blocks
+# datacenter IP ranges, and GitHub's runners are datacenter IPs, so this may
+# need running from a normal connection instead.
+
+on:
+  schedule:
+    - cron: "0 4 1 * *"    # 04:00 UTC on the 1st of each month: full refresh
+    - cron: "0 4 * * 2"    # 04:00 UTC every Tuesday: AFL fixture snapshot
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "What to refresh"
+        required: true
+        default: "all"
+        type: choice
+        options: [all, soccer, afl]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Decide scope
+        id: scope
+        run: |
+          # The weekly cron only refreshes the AFL snapshot; the monthly one
+          # and any manual run do whatever was asked for.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "0 4 * * 2" ]; then
+              echo "scope=afl" >> "$GITHUB_OUTPUT"
+            else
+              echo "scope=all" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "scope=${{ inputs.scope }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Refresh soccer data and retrain
+        if: steps.scope.outputs.scope == 'all' || steps.scope.outputs.scope == 'soccer'
+        run: |
+          python3 src/ingest_soccer.py --refresh
+          python3 src/train.py
+
+      - name: Refresh AFL data and retrain
+        if: steps.scope.outputs.scope == 'all' || steps.scope.outputs.scope == 'afl'
+        continue-on-error: true    # Squiggle may refuse this runner's IP
+        id: afl
+        run: |
+          python3 src/ingest_afl.py
+          python3 src/train_afl.py
+
+      - name: Report an AFL fetch refusal rather than failing silently
+        if: steps.afl.outcome == 'failure'
+        run: |
+          echo "::warning title=AFL refresh skipped::Squiggle refused this runner." \
+               "It blocks datacenter IP ranges, which includes GitHub Actions." \
+               "Run 'python3 src/ingest_afl.py && python3 src/train_afl.py' from a" \
+               "normal connection and commit the result."
+
+      - name: Commit refreshed artifacts
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data models reports
+          if git diff --cached --quiet; then
+            echo "Nothing changed; not committing."
+            exit 0
+          fi
+          # Summarise what actually moved, so the commit is reviewable rather
+          # than an opaque "update models".
+          SOCCER_TO=$(python3 -c "import pandas as pd,sys;sys.path.insert(0,'src');import config;print(pd.read_parquet(config.SOCCER_PROCESSED)['date'].max().date())" 2>/dev/null || echo "unchanged")
+          git commit -m "Refresh data and retrain (soccer through ${SOCCER_TO})" \
+                     -m "Automated by .github/workflows/refresh-models.yml (scope: ${{ steps.scope.outputs.scope }})."
+          git push

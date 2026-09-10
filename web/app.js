@@ -185,13 +185,17 @@ function boardGroups() {
   for (const [div, g] of Object.entries(board.data.soccer || {})) {
     if (g?.fixtures?.length) {
       groups.push({ key: div, sport: "soccer", league: g.league || div,
-                    fixtures: g.fixtures, stale: g.stale });
+                    fixtures: g.fixtures, stale: g.stale,
+                    modelStale: g.model_stale, modelAge: g.model_age_days,
+                    modelDate: g.model_trained_as_of });
     }
   }
   const afl = board.data.afl;
   if (afl?.fixtures?.length) {
     groups.push({ key: "AFL", sport: "afl", league: "AFL",
-                  fixtures: afl.fixtures, stale: afl.stale });
+                  fixtures: afl.fixtures, stale: afl.stale,
+                  modelStale: afl.model_stale, modelAge: afl.model_age_days,
+                  modelDate: afl.model_trained_as_of });
   }
   return groups;
 }
@@ -246,6 +250,7 @@ function renderBoard(animate = false) {
            <h2>${esc(g.league)}</h2>
            <span class="rail__count">${fixtures.length} fixture${fixtures.length === 1 ? "" : "s"}</span>
            ${g.stale ? `<span class="badge badge--warn">${icon("alert")}Cached</span>` : ""}
+           ${g.modelStale ? `<span class="badge badge--warn" title="Last trained ${esc(g.modelDate)}">${icon("alert")}Model ${Math.floor(g.modelAge / 30)} months old</span>` : ""}
          </div>
          <div class="fixtures" data-animate="${animate}">
            ${fixtures.map((f) => fixtureRow(f, g.sport)).join("")}
@@ -296,17 +301,20 @@ function renderCoverage() {
   if (!cov.length) { box.innerHTML = ""; return; }
 
   const states = board.data.summary?.states || {};
-  const notLive = cov.filter((c) => c.state !== "live");
+  // A competition can have a perfectly live feed and a two-year-old model.
+  // That is exactly the case worth reporting, so freshness gets in here too.
+  const notLive = cov.filter((c) => c.state !== "live" || c.model_stale);
   if (!notLive.length) { box.innerHTML = ""; return; }
 
   const order = ["error", "unconfigured", "snapshot", "stale", "no-fixtures", "unsupported"];
   const rows = [...notLive].sort(
     (a, b) => order.indexOf(a.state) - order.indexOf(b.state));
 
-  const summary = order
-    .filter((s) => states[s])
-    .map((s) => `${states[s]} ${COVERAGE_COPY[s].label.toLowerCase()}`)
-    .join(", ");
+  const staleModels = cov.filter((c) => c.model_stale).length;
+  const summary = [
+    ...order.filter((s) => states[s]).map((s) => `${states[s]} ${COVERAGE_COPY[s].label.toLowerCase()}`),
+    ...(staleModels ? [`${staleModels} stale model${staleModels === 1 ? "" : "s"}`] : []),
+  ].join(", ");
 
   box.innerHTML = `
     <details class="coverage-panel">
@@ -320,7 +328,10 @@ function renderCoverage() {
           return `<div class="coverage__row">
             <span class="badge badge--${meta.tone}">${esc(meta.label)}</span>
             <span class="coverage__name">${esc(c.league)}</span>
-            <span class="coverage__detail">${esc(c.detail || "")}</span>
+            <span class="coverage__detail">${esc(c.detail || "")}${
+              c.model_stale
+                ? `<em class="coverage__stale">Model last trained ${esc(c.model_trained_as_of)}, ${c.model_age_days} days ago.</em>`
+                : ""}</span>
           </div>`;
         }).join("")}
         <p class="why-scope">
@@ -388,6 +399,9 @@ function fixtureRow(f, sport) {
         <div class="fixture__team${best === h ? " fixture__team--fav" : ""}"><span class="side">H</span><span>${home}</span></div>
         <div class="fixture__team${best === a ? " fixture__team--fav" : ""}"><span class="side">A</span><span>${away}</span></div>
         ${f.venue ? `<div class="fixture__venue">${esc(f.venue)}${f.round ? ` · ${esc(f.round)}` : ""}</div>` : ""}
+        ${f.unmatched?.length ? `<div class="fixture__warn" title="Priced at competition-average strength">
+          ${icon("alert")}${f.unmatched.length === 2 ? "Both sides" : esc(f.unmatched[0])} not in the model
+        </div>` : ""}
       </div>
       <div class="odds">
         <div class="probbar">${bar}</div>
@@ -400,7 +414,16 @@ function fixtureRow(f, sport) {
       <span class="disclose">${icon("chevron")}</span>
     </button>
     <div class="fixture__detail" id="${id}" data-open="false"><div>
-      <div class="fixture__detail-inner">${detailBody(p, sport)}</div>
+      <div class="fixture__detail-inner">${
+        f.unmatched?.length
+          ? `<div class="callout callout--warn" style="margin-bottom:1rem">${icon("alert")}<div>
+               <strong>${esc(f.unmatched.join(" and "))}</strong>
+               ${f.unmatched.length === 2 ? "are" : "is"} not in this competition's training data,
+               so ${f.unmatched.length === 2 ? "they are" : "it is"} priced at competition-average
+               strength. Treat this line as much weaker evidence than the rest of the board.
+             </div></div>`
+          : ""
+      }${detailBody(p, sport)}</div>
     </div></div>
   </div>`;
 }

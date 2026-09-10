@@ -27,10 +27,10 @@ Each league ends up in exactly one coverage state:
 """
 from __future__ import annotations
 
-import difflib
 import json
 import sys
 import time
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,6 +39,7 @@ import config
 import football_data as fd
 import http_budget
 import predictor as pred
+import team_match
 import tracking
 
 THESPORTSDB_KEY = "3"  # shared free "test" key
@@ -66,23 +67,6 @@ def _normalize(name: str) -> str:
     return "".join(c.lower() for c in (name or "") if c.isalnum())
 
 
-def _fuzzy_team_match(name: str, known: list[str]) -> str:
-    """Maps a live feed's team name onto the name our model was trained with.
-
-    A wrong-but-confident match is worse than no match — it would silently
-    run the prediction, head-to-head and form narrative for the wrong club
-    under the right club's name — so the cutoff stays tight and an unmatched
-    name is passed through untouched. predict_soccer already falls back to
-    league-average strength for teams it has never seen.
-    """
-    norm_map = {_normalize(t): t for t in known}
-    key = _normalize(name)
-    if key in norm_map:
-        return norm_map[key]
-    match = difflib.get_close_matches(key, list(norm_map.keys()), n=1, cutoff=0.7)
-    return norm_map[match[0]] if match else name
-
-
 def _thesportsdb_upcoming(league_id: str, max_wait: float = 0.0) -> http_budget.Fetched:
     res = http_budget.get_json(
         f"{BASE}/eventsnextleague.php?id={league_id}",
@@ -107,8 +91,8 @@ def _build_soccer_fixtures(div: str, league_name: str, events: list[dict]) -> li
         home_raw, away_raw = ev.get("strHomeTeam"), ev.get("strAwayTeam")
         if not home_raw or not away_raw:
             continue
-        home = _fuzzy_team_match(home_raw, known)
-        away = _fuzzy_team_match(away_raw, known)
+        home, home_how = team_match.match_team(home_raw, known)
+        away, away_how = team_match.match_team(away_raw, known)
         try:
             prediction = pred.predict_soccer(div, home, away)
         except Exception as e:
@@ -124,7 +108,11 @@ def _build_soccer_fixtures(div: str, league_name: str, events: list[dict]) -> li
             "away_team_live_name": away_raw,
             "home_team": home,
             "away_team": away,
-            "matched": home != home_raw or away != away_raw,
+            # An unmatched side is priced at competition-average strength,
+            # which is a materially weaker prediction. Say so rather than
+            # letting it look like any other row.
+            "unmatched": [n for n, how in ((home_raw, home_how), (away_raw, away_how))
+                          if how == "unmatched"],
             "prediction": prediction,
         })
     return out
@@ -140,8 +128,8 @@ def _build_afl_fixtures(events: list[dict]) -> list[dict]:
         home_raw, away_raw = ev.get("strHomeTeam"), ev.get("strAwayTeam")
         if not home_raw or not away_raw:
             continue
-        home = _fuzzy_team_match(home_raw, known) if known else home_raw
-        away = _fuzzy_team_match(away_raw, known) if known else away_raw
+        home, home_how = team_match.match_team(home_raw, known) if known else (home_raw, "exact")
+        away, away_how = team_match.match_team(away_raw, known) if known else (away_raw, "exact")
         try:
             prediction = pred.predict_afl(
                 home, away, venue=ev.get("venue"), game_date=ev.get("dateEvent"),
@@ -162,9 +150,42 @@ def _build_afl_fixtures(events: list[dict]) -> list[dict]:
             "away_team": away,
             "venue": ev.get("venue"),
             "round": ev.get("round"),
+            "unmatched": [n for n, how in ((home_raw, home_how), (away_raw, away_how))
+                          if how == "unmatched"],
             "prediction": prediction,
         })
     return out
+
+
+# A model is called stale past this many days without a new training match.
+# Roughly two months: long enough that a normal mid-season gap or an
+# international break doesn't trip it, short enough to catch a competition
+# whose data feed has quietly stopped updating.
+MODEL_STALE_AFTER_DAYS = 60
+
+
+def _model_freshness(code: str) -> dict:
+    """When the model serving this competition last saw a real match.
+
+    Worth surfacing because a stale model fails silently: it keeps returning
+    confident probabilities from team strengths that are a season or two out
+    of date, and nothing about the output looks wrong. Four of the trained
+    competitions are fed by a source that stopped updating in December 2024,
+    so this is a live condition, not a hypothetical.
+    """
+    try:
+        if code == "AFL":
+            trained = pred.load_afl_model().trained_as_of
+        else:
+            trained = pred.load_soccer_artifact(code)["trained_as_of"]
+    except Exception:
+        return {}
+    try:
+        age = (date.today() - datetime.strptime(trained, "%Y-%m-%d").date()).days
+    except (ValueError, TypeError):
+        return {"model_trained_as_of": trained}
+    return {"model_trained_as_of": trained, "model_age_days": age,
+            "model_stale": age > MODEL_STALE_AFTER_DAYS}
 
 
 def _coverage(code: str, name: str, state: str, count: int = 0,
@@ -172,7 +193,8 @@ def _coverage(code: str, name: str, state: str, count: int = 0,
               age_seconds: float = 0.0) -> dict:
     return {"code": code, "league": name, "state": state, "fixtures": count,
             "source": source, "detail": detail,
-            "age_minutes": round(age_seconds / 60) if age_seconds else 0}
+            "age_minutes": round(age_seconds / 60) if age_seconds else 0,
+            **_model_freshness(code)}
 
 
 def get_live_fixtures(force_refresh: bool = False) -> dict:
@@ -241,6 +263,7 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
             result["soccer"][div] = {
                 "league": name, "fixtures": fixtures,
                 "source": source, "stale": res.is_stale,
+                **_model_freshness(div),
             }
         # "no-fixtures" states only what we observed: the feed answered and
         # listed nothing inside the window. Calling that "off-season" would be
@@ -266,6 +289,7 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
             result["afl"]["fixtures"] = fixtures
             result["afl"]["source"] = "squiggle"
             result["afl"]["stale"] = afl_res.is_stale
+            result["afl"].update(_model_freshness("AFL"))
             if not fixtures:
                 state = "no-fixtures"
             elif afl_res.status == "snapshot":
