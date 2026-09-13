@@ -48,6 +48,11 @@ import store
 GRADE_AFTER_DAYS = 1          # don't look for a result until the day after kick-off
 MAX_GRADE_ATTEMPTS = 8        # write off as "unresolved" after this many answered-but-absent passes
 GRADE_INTERVAL_SECONDS = 300  # at most one grading sweep every 5 minutes
+# TheSportsDB has no usable bulk results endpoint on the free key, so those
+# divisions are graded one fixture at a time. Capped per sweep against a
+# 12-per-minute budget shared with the fixture board, which must keep
+# priority — the backlog drains over a few sweeps instead of one.
+TSDB_LOOKUPS_PER_SWEEP = 6
 AFL_TOTAL_LINE = config.AFL_TOTAL_LINE  # benchmark line for the AFL over/under market
 
 _write_lock = threading.Lock()
@@ -258,6 +263,57 @@ def grade_pending(force: bool = False) -> dict:
                     else:
                         e["attempts"] = e.get("attempts", 0) + 1
                     dirty[e["key"]] = e
+
+        # --- TheSportsDB divisions, one lookup per fixture ------------------
+        # These seven divisions had no results path at all, so their entries
+        # were never queried, never had `attempts` incremented, and therefore
+        # could neither settle nor age out — they accumulated in
+        # "awaiting result" for ever. Bulk endpoints are unusable on the free
+        # key (see fixtures.lookup_event), so this is per-fixture and capped:
+        # oldest first, draining across successive sweeps rather than
+        # spending the whole TheSportsDB budget in one pass.
+        import fixtures as fx
+
+        tsdb_pending = [e for e in pending
+                        if e["sport"] == "soccer"
+                        and not e.get("graded")
+                        and e.get("provider") == "thesportsdb"
+                        and e.get("provider_id")]
+        looked_up = 0
+        for e in sorted(tsdb_pending, key=lambda x: x.get("date") or ""):
+            if looked_up >= TSDB_LOOKUPS_PER_SWEEP:
+                break
+            res = fx.lookup_event(str(e["provider_id"]), max_wait=0.0)
+            looked_up += 1
+            if not res.ok and res.error and "not found" not in res.error:
+                # Budget spent or provider down: we never got an answer, so
+                # the fixture is not pushed toward being written off.
+                queried.append(f"{e.get('div')}: {res.error}")
+                continue
+            if res.data:
+                _apply_result(e, res.data["home_score"], res.data["away_score"])
+                graded += 1
+            else:
+                # A real answer that carried no final score — not played yet,
+                # abandoned, or an id the provider no longer knows. That is a
+                # genuine attempt and counts toward ageing out.
+                e["attempts"] = e.get("attempts", 0) + 1
+            dirty[e["key"]] = e
+        if tsdb_pending:
+            queried.append(f"thesportsdb: {looked_up} of {len(tsdb_pending)} looked up")
+
+        # --- anything no configured provider can ever answer ----------------
+        # Distinct from "we did not get to ask": there is no feed for these at
+        # all, so waiting cannot help and leaving them pending for ever
+        # misrepresents the board. They age out on the same counter.
+        resolvable = lambda e: (
+            e["sport"] == "afl"
+            or fd.covers(e.get("div") or "")
+            or (e.get("provider") == "thesportsdb" and e.get("provider_id")))
+        for e in pending:
+            if not e.get("graded") and not resolvable(e):
+                e["attempts"] = e.get("attempts", 0) + 1
+                dirty[e["key"]] = e
 
         # --- write off anything that has been asked about too many times ---
         for e in pending:

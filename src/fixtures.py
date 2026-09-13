@@ -88,6 +88,44 @@ def _thesportsdb_upcoming(league_id: str, max_wait: float = 0.0) -> http_budget.
     return http_budget.Fetched(events, res.status, res.age_seconds, res.error)
 
 
+def lookup_event(event_id: str, max_wait: float = 0.0) -> http_budget.Fetched:
+    """One finished fixture by TheSportsDB event id, as
+    {"home_score": int, "away_score": int} — or None data when the match has
+    no final score yet.
+
+    Grading these divisions has to be per-fixture. The bulk endpoints are
+    unusable on the free key: eventspastleague returns a single event, and
+    eventsseason truncates to the first fifteen of the season (verified — a
+    2026 MLS season query came back with February only). The volume is small
+    because only the seven TheSportsDB-only divisions land here, and the
+    caller caps how many it looks up per sweep.
+    """
+    res = http_budget.get_json(
+        f"{BASE}/lookupevent.php?id={event_id}",
+        budget=http_budget.THESPORTSDB,
+        cache_key=f"tsdb:event:{event_id}",
+        # A finished score never changes, and an unfinished one is re-asked
+        # on the next sweep anyway, so this only has to avoid re-asking
+        # within a single grading pass.
+        ttl=30 * 60,
+        max_wait=max_wait,
+    )
+    if not res.ok:
+        return res
+    events = (res.data or {}).get("events") or []
+    if not events:
+        return http_budget.Fetched(None, res.status, res.age_seconds, "event not found")
+    ev = events[0]
+    home, away = ev.get("intHomeScore"), ev.get("intAwayScore")
+    if home is None or away is None or str(home) == "" or str(away) == "":
+        return http_budget.Fetched(None, res.status, res.age_seconds, None)
+    try:
+        score = {"home_score": int(home), "away_score": int(away)}
+    except (TypeError, ValueError):
+        return http_budget.Fetched(None, res.status, res.age_seconds, "unparseable score")
+    return http_budget.Fetched(score, res.status, res.age_seconds, None)
+
+
 def _build_soccer_fixtures(div: str, league_name: str, events: list[dict]) -> list[dict]:
     known = pred.list_soccer_teams(div)
     out = []

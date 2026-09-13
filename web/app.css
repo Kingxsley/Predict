@@ -159,6 +159,14 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* An <svg> with no intrinsic size falls back to the replaced-element default
+   of 300x150. Every icon here was sized by a component rule, so any icon
+   placed somewhere without one rendered enormous — which is exactly what
+   happened to the correct/wrong marks in the track record. A 1em default
+   makes an unstyled icon merely the size of its text. The sprite carries
+   width="0" and is excluded so it stays collapsed. */
+svg:not([width]) { width: 1em; height: 1em; }
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -963,6 +971,29 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .board-table tr.fx-detail > td { display: block; width: 100%; padding: 0; border: 0; }
   .fx-detail__inner { padding: var(--s3) var(--s4) var(--s4); border-bottom: 0; }
 }
+
+/* Settled-market marker. Small tinted disc rather than a bare glyph: a
+   column of these has to be scannable without any one of them shouting,
+   and the size is fixed here rather than inherited from whatever rule
+   happens to match. */
+.res {
+  display: inline-grid; place-items: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  vertical-align: -4px; margin-left: 5px;
+}
+.res svg { width: 10px; height: 10px; }
+.nowrap { white-space: nowrap; }
+
+/* Pick, probability and its marker read as one statement, so they stay on
+   one line together and the whole thing wraps as a unit if it must. */
+/* nowrap, not wrap: an 18px marker dropping to its own line to save a few
+   pixels made every settled cell two rows tall for no gain. Held on one
+   line, the table simply allocates the column a little more width. */
+.mkt { display: inline-flex; align-items: center; gap: 0; flex-wrap: nowrap; }
+.mkt__call { white-space: nowrap; }
+.mkt__p { color: var(--ink-3); margin-left: 5px; }
+.res--hit  { background: var(--pos-wash); color: var(--pos); }
+.res--miss { background: var(--neg-wash); color: var(--neg); }
 
 /* Divider between the settled record and the fixtures still to come. */
 .rec-split > td {

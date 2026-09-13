@@ -1106,10 +1106,16 @@ function marketCell(e, market) {
   const m = e.markets?.[market];
   if (!m) return `<span style="color:var(--ink-3)">–</span>`;
   const prob = m.probs?.[m.pick];
-  const label = `${esc(pickLabel(e, market, m.pick))} <span style="color:var(--ink-3)" class="num">${pct(prob)}</span>`;
-  if (!("actual" in m)) return label;
-  return `${label} <span style="color:var(--${m.correct ? "pos" : "neg"})" title="${m.correct ? "Correct" : "Wrong"}">
-    ${icon(m.correct ? "check" : "cross")}</span>`;
+  const label = `<span class="mkt__pick">${esc(pickLabel(e, market, m.pick))}</span>
+    <span class="mkt__p num">${pct(prob)}</span>`;
+  if (!("actual" in m)) return `<span class="mkt">${label}</span>`;
+  const hit = m.correct;
+  // The marker sits on the same line as the call it grades; letting it wrap
+  // onto its own line detaches it from the pick it belongs to.
+  return `<span class="mkt"><span class="mkt__call">${label}</span>
+    <span class="res res--${hit ? "hit" : "miss"}" title="${
+      hit ? "Correct" : "Wrong"}" role="img" aria-label="${hit ? "Correct" : "Wrong"}">${
+      icon(hit ? "check" : "cross")}</span></span>`;
 }
 
 function accuracyMetric(label, stat, sub) {
@@ -1184,7 +1190,7 @@ function renderRecord() {
           : "";
         return `${divider}<tr>
           ${tdLead(`${esc(e.home)} v ${esc(e.away)}`)}
-          ${td("Date", esc(e.date || ""), "num")}
+          ${td("Date", esc(e.date || ""), "num nowrap")}
           ${td("Competition", esc(e.league))}
           ${td("Result", marketCell(e, afl ? "h2h" : "1x2"))}
           ${td("Secondary", afl ? `<span style="color:var(--ink-3)">–</span>` : marketCell(e, "btts"))}
