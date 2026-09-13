@@ -327,6 +327,55 @@ const predScore = (p) =>
   isNum(p.predicted_score_home) && isNum(p.predicted_score_away)
     ? `${p.predicted_score_home}–${p.predicted_score_away}` : "–";
 
+/* ---------- crests, flags, odds ------------------------------------------
+   No crest imagery is licensed or fetched: the badges are generated from the
+   club name, so they work offline, cost no requests, and cannot 404. */
+
+/** Country code per competition. Deliberately NOT flag emoji: Windows ships
+ *  no flag glyphs at all, so 🇳🇱 renders as the letters "NL" and England's
+ *  tag sequence renders as a blank white flag — verified in Chromium here.
+ *  A code chip renders identically on every platform and reads as a
+ *  deliberate mark rather than a broken one. */
+const DIV_CC = {
+  E0: "ENG", E1: "ENG", SC0: "SCO", D1: "GER", F1: "FRA", I1: "ITA",
+  N1: "NED", SP1: "ESP", P1: "POR", BRA: "BRA", ARG: "ARG", MEX: "MEX",
+  USA: "USA", T1: "TUR", G1: "GRE", B1: "BEL", AFL: "AUS",
+};
+const ccFor = (div, sport) => DIV_CC[div] || (sport === "afl" ? "AUS" : "—");
+
+/** Deterministic monogram badge. The hue comes from the club name, so a
+ *  team keeps the same colour everywhere on the board and between sessions
+ *  without anything being stored. */
+function monogram(name) {
+  const clean = String(name || "").trim();
+  if (!clean) return "";
+  let h = 0;
+  for (let i = 0; i < clean.length; i++) h = (h * 31 + clean.charCodeAt(i)) >>> 0;
+  const words = clean.split(/[\s.-]+/).filter(Boolean);
+  const initials = (words.length > 1 ? words[0][0] + words[1][0] : clean.slice(0, 2))
+    .toUpperCase();
+  return `<i class="crest" style="--h:${h % 360}" aria-hidden="true">${esc(initials)}</i>`;
+}
+
+/** Model-implied fair odds. Explicitly NOT a bookmaker price — 1 ÷ p, with
+ *  no margin — which is why the column is labelled "model odds". */
+const fairOdds = (p) => (isNum(p) && p > 0 ? (1 / p).toFixed(2) : "–");
+
+/** The 1 / X / 2 box set. Palmerbet-style bordered price cells, with the
+ *  model's own call filled rather than outlined, so the tip is legible at a
+ *  glance without a separate column repeating it. */
+function oddsBoxes(p, sport, tip) {
+  const legs = sport === "soccer"
+    ? [["1", p.prob_home_win], ["X", p.prob_draw], ["2", p.prob_away_win]]
+    : [["1", p.prob_home_win], ["2", p.prob_away_win]];
+  return `<span class="odds" style="--n:${legs.length}">${legs.map(([code, prob]) => `
+    <span class="odd${code === tip.code ? " is-pick" : ""}">
+      <b class="odd__k">${code}</b>
+      <b class="odd__v">${fairOdds(prob)}</b>
+      <span class="odd__p">${pct(prob, 0)}</span>
+    </span>`).join("")}</span>`;
+}
+
 /** "L-L-D-L-L" -> five pills, oldest first. Already scoped to that team. */
 function formPills(results) {
   if (!results) return "";
@@ -370,12 +419,13 @@ function sortRows(rows) {
 
 const COLUMNS = [
   { key: "time",   label: "Kick-off", sort: "time",   cls: "c-when" },
-  { key: "league", label: "Competition", sort: "league", cls: "c-league" },
+  { key: "league", label: "Comp",     sort: "league", cls: "c-league" },
   { key: "match",  label: "Match",    sort: "match",  cls: "c-match" },
   { key: "form",   label: "Form",     sort: null,     cls: "c-form" },
-  { key: "tip",    label: "Tip",      sort: "tip",    cls: "c-tip" },
+  // Sorting the odds block sorts by the model's confidence in its own call,
+  // which is what "best price" means on a board with no bookmaker attached.
+  { key: "odds",   label: "Model odds", sort: "prob", cls: "c-odds" },
   { key: "pred",   label: "Score",    sort: null,     cls: "c-pred" },
-  { key: "prob",   label: "Probability", sort: "prob", cls: "c-prob" },
   { key: "ou",     label: "Totals",   sort: null,     cls: "c-ou" },
   { key: "open",   label: "",         sort: null,     cls: "c-open" },
 ];
@@ -568,11 +618,14 @@ function matchCell(f, tip) {
   const warn = f.unmatched?.length
     ? `<span class="match__warn" title="${esc(f.unmatched.join(" and "))} not in the model; priced at competition-average strength">${icon("alert")}</span>`
     : "";
+  // Stacked home-over-away with a badge each, the way every scores product
+  // sets a fixture — an inline "A v B" reads as prose, not as a match.
   const side = (name, fav) =>
-    `<span class="match__side${fav ? " is-fav" : ""}" title="${esc(name)}">${esc(shortTeam(name))}</span>`;
+    `<span class="match__side${fav ? " is-fav" : ""}">
+       ${monogram(name)}<span class="match__name" title="${esc(name)}">${esc(shortTeam(name))}</span>
+     </span>`;
   return `<span class="match">
     ${side(f.home_team_live_name, tip?.code === "1")}
-    <span class="match__v" aria-label="versus">v</span>
     ${side(f.away_team_live_name, tip?.code === "2")}
   </span>${warn}`;
 }
@@ -582,7 +635,9 @@ function fixtureRow(r) {
   const { time, day } = fmtKick(f.date, f.time);
   const span = COLUMNS.length;
   const leagueCell =
-    `<span class="league-tag" title="${esc(league)}">${esc(shortLeague(league))}</span>`;
+    `<span class="league-tag" title="${esc(league)}"><i class="cc">${
+      esc(ccFor(f.div ?? r.group?.key, sport))}</i><span class="league-tag__n">${
+      esc(shortLeague(league))}</span></span>`;
   const when = `<span class="when__t">${esc(time)}</span><span class="when__d">${esc(day)}</span>`;
 
   // A fixture the model could not price still belongs on the board — hiding
@@ -600,38 +655,19 @@ function fixtureRow(r) {
 
   const id = `fx-${rowId++}`;
   const tip = r.tip;
-  const h = p.prob_home_win ?? 0, d = p.prob_draw ?? 0, a = p.prob_away_win ?? 0;
   const totals = totalsFor(p, sport);
-
-  // Three segments summing to 100%. The AFL draw slice is genuinely ~1%
-  // rather than absent, so it is drawn rather than dropped.
-  const seg = (cls, v) => `<i class="${cls}" style="width:${((v ?? 0) * 100).toFixed(2)}%"></i>`;
-  const barLabel = sport === "soccer"
-    ? `Home ${pct(h)}, draw ${pct(d)}, away ${pct(a)}`
-    : `Home ${pct(h)}, away ${pct(a)}`;
 
   const form = p.rationale
     ? `${formPills(p.rationale.home_form?.results)}${formPills(p.rationale.away_form?.results)}`
     : "";
-
-  const sub = sport === "afl" && isNum(p.predicted_margin_home)
-    ? `${signed(p.predicted_margin_home)} pts`
-    : `fair ${num(1 / tip.prob)}`;
 
   return `<tr class="fx" data-row="${id}">
     ${td("Kick-off", when, "c-when")}
     ${td("Competition", leagueCell, "c-league")}
     <td class="c-match" data-lead>${matchCell(f, tip)}</td>
     ${td("Form", form || `<span class="dash">–</span>`, "c-form")}
-    ${td("Tip", `<span class="tip tip--${tip.code === "1" ? "h" : tip.code === "2" ? "a" : "d"}"
-           title="${esc(tip.word)} · ${pct(tip.prob)}">${tip.code}</span>`, "c-tip")}
+    ${td("Model odds", oddsBoxes(p, sport, tip), "c-odds")}
     ${td("Score", `<span class="pred">${predScore(p)}</span>`, "c-pred")}
-    ${td("Probability", `<span class="prob">
-        <span class="probbar" role="img" aria-label="${esc(barLabel)}">${
-          seg("is-home", h) + seg("is-draw", d) + seg("is-away", a)}</span>
-        <b class="prob__n">${pct(tip.prob)}</b>
-        <span class="prob__sub">${esc(sub)}</span>
-      </span>`, "c-prob")}
     ${td("Totals", `<span class="ou">${esc(totals.code)}<b>${pct(totals.prob)}</b></span>`, "c-ou")}
     <td class="c-open">
       <button class="disclose" type="button" aria-expanded="false" aria-controls="${id}">

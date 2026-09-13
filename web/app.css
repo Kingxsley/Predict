@@ -33,12 +33,12 @@
 
   /* Interaction. --accent is the fill; --accent-ink the text on it;
      --accent-text the on-surface variant that clears 4.5:1 as body copy. */
-  --accent:        #1f66c4;
-  --accent-hover:  #1a5aae;
+  --accent:        var(--brand-2);
+  --accent-hover:  #5b21b6;
   --accent-ink:    #ffffff;
-  --accent-text:   #1f66c4;
-  --accent-wash:   #e8f0fb;
-  --focus:         #1f66c4;
+  --accent-text:   #5b21b6;   /* 7.0:1 on --bg as body copy */
+  --accent-wash:   var(--brand-wash);
+  --focus:         var(--brand-2);
 
   /* Status — reserved. Never used as a series colour. */
   --pos:      #00792b;
@@ -68,16 +68,21 @@
      and the scoreline only — never a label, control or data cell, which
      stay in the grotesque. The pairing is on a genuine contrast axis
      (serif / grotesque), not two sans faces that differ slightly. */
-  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-display: "Archivo", "Public Sans", -apple-system, sans-serif;
 
-  /* The masthead is the identity. A near-black bar under a serif wordmark
-     reads as a publication rather than an admin tool, and it is the same
-     value in both themes, so the brand does not change character when the
-     page does. */
-  --masthead:     #14171c;
+  /* Brand. A saturated colour owns the masthead and every primary action —
+     the category signature, and the thing a near-black bar could not do.
+     Violet deliberately: the two reference sites own royal blue and green,
+     and blue/amber/pink are already spoken for by the 1X2 series below, so
+     a brand colour has to sit outside all of it. */
+  --brand:      #4c1d95;   /* masthead, section rules                      */
+  --brand-2:    #6d28d9;   /* primary actions, active states               */
+  --brand-3:    #8b5cf6;   /* hover, on-dark accents                       */
+  --brand-wash: #f1ebfe;
+  --masthead:     var(--brand);
   --masthead-ink: #ffffff;
-  --masthead-dim: #9aa2ad;
-  --masthead-line:#2c313a;
+  --masthead-dim: #c9b8f2;
+  --masthead-line: #5f34a8;
   --text-3xl: 1.75rem;   /* 28 — page-level figures                          */
   --text-2xl: 1.375rem;  /* 22 — view titles                                 */
   --text-xl:  1.125rem;  /* 18 — section titles                              */
@@ -123,8 +128,11 @@
     --bg: #0b0d11; --surface: #121519; --surface-2: #1b1e23; --surface-3: #242930;
     --border: #272c31; --border-strong: #3b4047;
     --ink: #f0f2f4; --ink-2: #b1b6bd; --ink-3: #888e96;
-    --accent: #3987e5; --accent-hover: #4d97f0; --accent-ink: #06182e;
-    --accent-text: #6faaf0; --accent-wash: #14243a; --focus: #6faaf0;
+    --brand: #2e1065; --brand-2: #7c3aed; --brand-3: #a78bfa; --brand-wash: #241243;
+    --masthead: #1e0b46; --masthead-ink: #ffffff;
+    --masthead-dim: #b9a5e8; --masthead-line: #3b1f7a;
+    --accent: #7c3aed; --accent-hover: #8b5cf6; --accent-ink: #ffffff;
+    --accent-text: #b79cf7; --accent-wash: #241243; --focus: #b79cf7;
     --pos: #50c76a; --pos-wash: #122b1a; --neg: #f75c61; --neg-wash: #331416;
     --warn: #e7b643; --warn-wash: #2e2410;
     --home: #3987e5; --draw: #c98500; --away: #d55181;
@@ -213,7 +221,9 @@ code {
 }
 .brand__name {
   font-family: var(--font-display);
-  font-size: 1.3125rem; font-weight: 600; letter-spacing: -0.015em;
+  font-size: 1.25rem; font-weight: 900;
+  font-variation-settings: "wdth" 88;
+  letter-spacing: -0.005em; text-transform: uppercase;
   color: var(--masthead-ink); white-space: nowrap;
 }
 .brand__rule { width: 1px; align-self: stretch; margin: 6px 0; background: var(--masthead-line); }
@@ -305,12 +315,13 @@ code {
 .view__head {
   margin-bottom: var(--s4);
   padding-bottom: var(--s3);
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 3px solid var(--brand);
 }
 .view__head h1 {
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
-  font-weight: 600; letter-spacing: -0.02em; line-height: 1.1;
+  font-size: clamp(1.625rem, 1.2rem + 1.5vw, 2.25rem);
+  font-weight: 900; font-variation-settings: "wdth" 92;
+  letter-spacing: -0.01em; line-height: 1.05; text-transform: uppercase;
   margin-bottom: var(--s1); text-wrap: balance;
 }
 .view__lede { color: var(--ink-2); font-size: var(--text-md); max-width: 68ch; text-wrap: pretty; }
@@ -617,24 +628,6 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--ink
 .fixtures { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
 .fixtures > * + * { border-top: 1px solid var(--border); }
 
-/* Stacked outcome bar, shared by the board table and the accumulator.
-   Width (not scaleX) is deliberate and is the only correct property: these
-   are stacked flex segments that must displace each other to sum to 100%,
-   which a transform cannot express. It runs once per row on first paint via
-   @starting-style, on three 6px-tall elements, and is disabled entirely
-   under prefers-reduced-motion. */
-.probbar { display: flex; gap: 2px; height: 6px; }
-.probbar > i {
-  display: block; border-radius: 2px; min-width: 2px;
-  transition: width var(--dur-3) var(--ease-expo);
-}
-/* Gated on data-animate so the bars grow in when fresh data lands, but not
-   on every keystroke while filtering an already-loaded board. */
-@starting-style { .board-table[data-animate="true"] .probbar > i { width: 0; } }
-.probbar > i.is-home { background: var(--home); }
-.probbar > i.is-draw { background: var(--draw); }
-.probbar > i.is-away { background: var(--away); }
-
 .disclose {
   display: grid; place-items: center; width: 28px; height: 28px;
   color: var(--ink-3); border-radius: var(--r-sm);
@@ -705,11 +698,16 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   background: var(--surface);
 }
 
+/* Caps, brand-coloured, on a solid rule — the section-header treatment both
+   reference boards use, rather than a soft grey table head. */
 .board-table thead th {
   position: sticky; top: 56px; z-index: var(--z-sticky);
   padding: var(--s2) var(--s3);
   background: var(--surface-2);
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 2px solid var(--brand);
+  font-family: var(--font-display);
+  font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-2);
 }
 
 .th-sort {
@@ -729,9 +727,9 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 [aria-sort="ascending"] .th-sort .i-sort__down,
 [aria-sort="descending"] .th-sort .i-sort__up { opacity: 0; }
 
-.board-table td { padding: var(--s3); border-bottom: 1px solid var(--border); height: 56px; }
-/* A taller bar reads as data rather than as a hairline decoration. */
-.board-table .probbar { height: 8px; }
+/* Taller than the editorial row: the fixture is now two stacked lines with
+   a badge each, and the price boxes need real target area. */
+.board-table td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); height: 68px; }
 .board-table tbody tr.fx:hover td,
 .board-table tbody tr.fx.is-open td { background: var(--surface-2); }
 .board-table tr.fx--dead td { color: var(--ink-3); }
@@ -742,12 +740,11 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 /* Match takes the slack; every other column is content-width so the numbers
    stay aligned down the page. */
 .c-when   { width: 1%; white-space: nowrap; }
-.c-league { width: 1%; max-width: 190px; }
-.c-match  { width: auto; min-width: 190px; }
+.c-league { width: 1%; max-width: 180px; }
+.c-match  { width: auto; min-width: 180px; }
 .c-form   { width: 1%; white-space: nowrap; }
-.c-tip    { width: 1%; text-align: center; }
+.c-odds   { width: 250px; }
 .c-pred   { width: 1%; text-align: center; white-space: nowrap; }
-.c-prob   { width: 170px; }
 .c-ou     { width: 1%; white-space: nowrap; }
 .c-open   { width: 36px; }
 
@@ -755,20 +752,77 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 .when__d { display: block; font-size: var(--text-xs); color: var(--ink-3); }
 
 .league-tag {
-  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; min-width: 0;
   font-size: var(--text-xs); color: var(--ink-2);
 }
+.league-tag__n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* One line, always. Uneven row heights from wrapping club names were the
-   single worst thing about the dense board; shortTeam() in the client does
-   the trimming and this guarantees the result never wraps anyway. */
-.match { display: flex; align-items: baseline; gap: var(--s2); min-width: 0; }
-.match__side {
-  font-size: var(--text-md); font-weight: 450;
+/* Home stacked over away, each with a badge — how a fixture is set in every
+   scores product. shortTeam() keeps each name to one line so row heights
+   stay uniform. */
+.match { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.match__side { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.match__name {
+  font-size: var(--text-md); font-weight: 500;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.match__side.is-fav { font-weight: 680; color: var(--ink); }
-.match__v { flex-shrink: 0; font-size: var(--text-xs); color: var(--ink-3); }
+.match__side.is-fav .match__name { font-weight: 700; color: var(--ink); }
+
+/* Generated badge. The hue comes from the club name, so a team looks the
+   same everywhere without any crest being fetched, stored or licensed. */
+.crest {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 5px;
+  /* OKLCH, not HSL. HSL lightness is not perceptually uniform: at 42%
+     lightness a blue badge is dark but a yellow or green one is bright
+     enough that white initials drop to 2.5:1. A fixed OKLCH L holds the
+     same real luminance at every hue, so every badge clears AA. */
+  background: hsl(var(--h) 55% 26%);
+  background: oklch(0.44 0.13 var(--h));
+  color: #fff; font-size: 9px; font-weight: 800; font-style: normal;
+  letter-spacing: 0.01em;
+}
+.cc {
+  flex-shrink: 0; display: inline-grid; place-items: center;
+  min-width: 30px; padding: 2px 4px; margin-right: var(--s2);
+  border-radius: 3px; background: var(--surface-3); color: var(--ink-2);
+  font-family: var(--font-display); font-style: normal;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.04em;
+}
+
+/* ---- Model odds ---------------------------------------------------------
+   Bordered price cells, the one element that makes a board read as a
+   betting board rather than a report. The figure is 1 ÷ probability with no
+   margin taken, so it is the model's own fair price and not a quote — the
+   column says "model odds" and the expanded row spells it out. */
+.odds { display: grid; grid-template-columns: repeat(var(--n, 3), 1fr); gap: 5px; }
+.odd {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline;
+  gap: 0 5px; padding: 5px var(--s2);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  background: var(--surface);
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.odd__k {
+  grid-row: 1; font-size: 10px; font-weight: 800; color: var(--ink-3);
+  font-family: var(--font-display);
+}
+.odd__v {
+  grid-row: 1; text-align: right;
+  font-size: var(--text-md); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.odd__p {
+  grid-row: 2; grid-column: 1 / -1; text-align: right;
+  font-size: 10px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+/* The model's own call is filled, not outlined. That is what lets the tip
+   column disappear: the pick is legible from the price set itself. */
+.odd.is-pick {
+  background: var(--brand-2); border-color: var(--brand-2);
+}
+.odd.is-pick .odd__k, .odd.is-pick .odd__v { color: #fff; }
+.odd.is-pick .odd__p { color: rgb(255 255 255 / 0.82); }
+.board-table tbody tr.fx:hover .odd:not(.is-pick) { border-color: var(--ink-3); }
 .match__warn { display: inline-flex; vertical-align: -2px; color: var(--warn); margin-left: var(--s2); }
 .match__warn svg { width: 13px; height: 13px; }
 
@@ -789,35 +843,14 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 .form__p--d { color: var(--ink-3); }
 .form__p--l { color: var(--neg); }
 
-/* Tinted rather than full-saturation: a whole column of solid pills
-   vibrates, and the tip is not a call to action. */
-.tip {
-  display: inline-grid; place-items: center;
-  min-width: 26px; height: 24px; padding: 0 var(--s2);
-  border-radius: var(--r-sm);
-  font-size: var(--text-md); font-weight: 700; font-variant-numeric: tabular-nums;
-}
-.tip--h { background: var(--accent-wash); color: var(--accent-text); }
-.tip--d { background: var(--warn-wash);   color: var(--warn); }
-.tip--a { background: var(--neg-wash);    color: var(--neg); }
-
 /* The scoreline is the headline of the row, so it is set in the display
    face at display size. This is the one number a reader takes away. */
 .pred {
   font-family: var(--font-display);
-  font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em;
+  font-size: 1.125rem; font-weight: 800; letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .dash { color: var(--ink-3); }
-
-/* Figure first, bar beneath it at full width. Side by side, the bar was
-   squeezed into whatever the percentage left over — about 50px of a 180px
-   column — and three stubby segments read as a rendering fault rather than
-   as a distribution. */
-.prob { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 5px var(--s2); }
-.prob__n { grid-row: 1; grid-column: 1; font-size: var(--text-md); font-weight: 650; font-variant-numeric: tabular-nums; }
-.prob__sub { grid-row: 1; grid-column: 2; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.prob .probbar { grid-row: 2; grid-column: 1 / -1; min-width: 120px; }
 
 .ou { display: inline-flex; align-items: baseline; gap: var(--s2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .ou b { font-weight: 600; color: var(--ink); }
@@ -872,15 +905,12 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 
   .board-table tbody tr.fx {
     display: grid; gap: var(--s2) var(--s3);
-    grid-template-columns: auto auto 1fr auto;
-    /* Totals rides the form line, right-aligned. Sharing the bottom line
-       with the probability put "fair 2.59" hard against "O2.5" with no
-       space between two unrelated numbers. */
+    grid-template-columns: auto 1fr auto auto;
     grid-template-areas:
-      "when   when  league open"
-      "match  match match  match"
-      "form   form  form   ou"
-      "tip    pred  prob   prob";
+      "when  when   league open"
+      "match match  match  pred"
+      "form  form   ou     ou"
+      "odds  odds   odds   odds";
     align-items: center;
     padding: var(--s3) var(--s4);
     background: var(--surface);
@@ -900,21 +930,22 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .board-table .c-league { grid-area: league; justify-content: flex-end; min-width: 0; }
   .board-table .c-match  { grid-area: match; }
   .board-table .c-form   { grid-area: form; }
-  .board-table .c-tip    { grid-area: tip; }
-  .board-table .c-pred   { grid-area: pred; }
-  .board-table .c-prob   { grid-area: prob; }
+  .board-table .c-pred   { grid-area: pred; justify-content: flex-end; }
+  .board-table .c-odds   { grid-area: odds; width: auto; }
   .board-table .c-ou     { grid-area: ou; justify-content: flex-end; }
   .board-table .c-open   { grid-area: open; justify-content: flex-end; }
   /* Every column that was shed at intermediate widths is back. */
   .board-table .c-form, .board-table .c-ou, .board-table .c-league { display: flex; }
+  /* Full-width price row: the three boxes are the primary target here. */
+  .board-table .c-odds .odds { width: 100%; }
+  .board-table .c-odds .odd { padding: var(--s2); }
 
   /* Kick-off reads as one line here rather than a stacked time and date. */
   .when__t, .when__d { display: inline; }
   .when__d { color: var(--ink-3); margin-left: var(--s2); }
   .board-table .c-when { font-size: var(--text-sm); }
-  .match__side { font-size: var(--text-lg); }
-  .board-table .c-prob { min-width: 0; }
-  .prob { width: 100%; }
+  .match__name { font-size: var(--text-lg); }
+  .crest { width: 22px; height: 22px; font-size: 10px; }
 
   .board-table tbody tr.fx.is-open {
     margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
@@ -1317,9 +1348,11 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 }
 
 @media (forced-colors: active) {
-  .probbar > i, .swatch, .meter__fill, .divbar i, .outcome__bar i { forced-color-adjust: none; }
+  .swatch, .meter__fill, .divbar i, .outcome__bar i { forced-color-adjust: none; }
   .board-table tbody tr.fx:hover td, .rail__item[aria-pressed="true"] { border: 1px solid; }
-  /* Tip and form pills lose their tint in forced colours, so give them an
-     outline — the glyph alone already carries the meaning. */
-  .tip, .form__p { border: 1px solid; }
+  /* The picked price loses its fill in forced colours, so mark it with a
+     heavier border — the 1 / X / 2 key already carries the meaning. */
+  .odd { border: 1px solid; }
+  .odd.is-pick { border-width: 3px; }
+  .crest { border: 1px solid; }
 }
