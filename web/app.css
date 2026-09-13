@@ -25,7 +25,11 @@
   /* Ink */
   --ink:   #181d24;           /* 16.9:1 on surface                           */
   --ink-2: #525961;           /*  7.1:1 — secondary copy                     */
-  --ink-3: #6e757e;           /*  4.7:1 — labels, placeholders (still AA)    */
+  /* Measured against --bg, which is where these actually sit — not against
+     --surface. The previous #6e757e was documented as 4.7:1 but audits at
+     4.34:1 on the page plane, so every muted label, rail count and hint on
+     the page failed AA. This clears it at 4.83:1. */
+  --ink-3: #666d76;           /*  4.83:1 on --bg — labels, placeholders      */
 
   /* Interaction. --accent is the fill; --accent-ink the text on it;
      --accent-text the on-surface variant that clears 4.5:1 as body copy. */
@@ -41,7 +45,11 @@
   --pos-wash: #e3f4e8;
   --neg:      #c2152f;
   --neg-wash: #fdeaec;
-  --warn:     #ad7300;
+  /* #ad7300 audited at 3.74:1 on --bg — it failed AA everywhere it was used
+     as text: the stale-model count, the coverage notes and the draw tip.
+     #8f5e00 clears it at 5.1:1. The dark theme's --warn already passes and
+     is unchanged. */
+  --warn:     #8f5e00;
   --warn-wash:#fbf1dd;
 
   /* Series — 1X2 outcome space. Validated all-pairs on #ffffff:
@@ -56,6 +64,20 @@
      x-height and real tabular figures, and because the variable weight axis
      lets the scale below use intermediate weights rather than snapping. */
   --font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Newsreader: a news serif with real optical sizing. It carries identity
+     and the scoreline only — never a label, control or data cell, which
+     stay in the grotesque. The pairing is on a genuine contrast axis
+     (serif / grotesque), not two sans faces that differ slightly. */
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+
+  /* The masthead is the identity. A near-black bar under a serif wordmark
+     reads as a publication rather than an admin tool, and it is the same
+     value in both themes, so the brand does not change character when the
+     page does. */
+  --masthead:     #14171c;
+  --masthead-ink: #ffffff;
+  --masthead-dim: #9aa2ad;
+  --masthead-line:#2c313a;
   --text-3xl: 1.75rem;   /* 28 — page-level figures                          */
   --text-2xl: 1.375rem;  /* 22 — view titles                                 */
   --text-xl:  1.125rem;  /* 18 — section titles                              */
@@ -169,42 +191,65 @@ code {
 
 /* ---------- 3. App shell ------------------------------------------------- */
 
+/* Solid near-black, not a translucent blur of the page beneath it. The
+   blurred-glass bar is the default every dashboard template ships with; a
+   flat masthead in a fixed colour is what mastheads have always been, and
+   it is the single element doing the most work to stop this reading as an
+   internal tool. */
 .masthead {
   position: sticky; top: 0; z-index: var(--z-header);
-  display: flex; align-items: center; gap: var(--s5);
+  display: flex; align-items: center; gap: var(--s6);
   padding: 0 var(--s5);
   height: 56px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(12px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
+  background: var(--masthead);
+  /* A visible line, not the bar's own colour: in dark the page behind is
+     nearly the same value and the masthead loses its edge entirely. */
+  border-bottom: 1px solid var(--masthead-line);
 }
 
-.brand { display: flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
-.brand__mark {
-  width: 28px; height: 28px; flex-shrink: 0;
-  color: var(--accent-text);
+.brand {
+  display: flex; align-items: baseline; gap: var(--s3);
+  flex-shrink: 0; text-decoration: none;
 }
 .brand__name {
-  font-size: var(--text-md); font-weight: 700; letter-spacing: -0.02em;
-  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 1.3125rem; font-weight: 600; letter-spacing: -0.015em;
+  color: var(--masthead-ink); white-space: nowrap;
 }
-.brand__name span { color: var(--ink-3); font-weight: 500; }
+.brand__rule { width: 1px; align-self: stretch; margin: 6px 0; background: var(--masthead-line); }
+.brand__kicker {
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--masthead-dim); white-space: nowrap;
+}
 
 .mainnav { display: flex; gap: var(--s1); overflow-x: auto; scrollbar-width: none; }
 .mainnav::-webkit-scrollbar { display: none; }
 .mainnav a {
   position: relative;
-  display: block; padding: var(--s2) var(--s4);
-  font-size: var(--text-md); font-weight: 550; color: var(--ink-2);
-  text-decoration: none; border-radius: var(--r-sm); white-space: nowrap;
-  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  display: block; padding: var(--s2) var(--s3);
+  font-size: var(--text-md); font-weight: 550; color: var(--masthead-dim);
+  text-decoration: none; white-space: nowrap;
+  transition: color var(--dur-1) var(--ease);
 }
-.mainnav a:hover { color: var(--ink); background: var(--surface-2); }
-.mainnav a[aria-current="page"] {
-  color: var(--accent-text); font-weight: 620; background: var(--accent-wash);
+.mainnav a:hover { color: var(--masthead-ink); }
+/* The current section is marked by a rule under the word, the way a
+   publication marks a section — not by a tinted pill. */
+.mainnav a[aria-current="page"] { color: var(--masthead-ink); font-weight: 620; }
+.mainnav a[aria-current="page"]::after {
+  content: ""; position: absolute; left: var(--s3); right: var(--s3); bottom: -1px;
+  height: 2px; background: var(--masthead-ink);
 }
 
 .masthead__end { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+
+/* Everything sitting on the dark bar inherits the bar's own ink, in both
+   themes — the masthead is a fixed surface, not a themed one. */
+.masthead .model-status { color: var(--masthead-dim); }
+.masthead .btn--ghost { color: var(--masthead-dim); }
+.masthead .btn--ghost:hover { color: var(--masthead-ink); background: rgb(255 255 255 / 0.1); }
+.masthead .hamburger { color: var(--masthead-ink); }
+.masthead .hamburger__bars i { background: var(--masthead-ink); }
+.masthead :focus-visible { outline-color: var(--masthead-ink); }
 
 /* Hamburger. Hidden above the breakpoint; the nav is a plain row there. */
 .hamburger {
@@ -253,9 +298,40 @@ code {
 
 .view[hidden] { display: none; }
 
-.view__head { margin-bottom: var(--s5); }
-.view__head h1 { margin-bottom: var(--s2); }
+/* Editorial masthead-to-content transition: a large serif title, a one-line
+   standfirst, and a rule. The previous head ran three lines of explanatory
+   prose above the fold — the thing readers skip and the thing pushing the
+   actual board off screen. */
+.view__head {
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s3);
+  border-bottom: 2px solid var(--ink);
+}
+.view__head h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
+  font-weight: 600; letter-spacing: -0.02em; line-height: 1.1;
+  margin-bottom: var(--s1); text-wrap: balance;
+}
 .view__lede { color: var(--ink-2); font-size: var(--text-md); max-width: 68ch; text-wrap: pretty; }
+
+/* Standfirst: the board's vital statistics as one readable line. */
+.dekline {
+  display: flex; align-items: center; gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s4);
+}
+.dekline__facts {
+  flex: 1; min-width: 0;
+  font-size: var(--text-md); color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.dekline__facts b { color: var(--ink); font-weight: 650; }
+.dekline__sep { margin: 0 var(--s2); color: var(--ink-3); }
+.dekline__facts b[data-tone="warn"] { color: var(--warn); }
+.dekline__facts b[data-tone="pos"]  { color: var(--pos); }
 
 /* ---------- 4. Controls -------------------------------------------------- */
 
@@ -283,6 +359,7 @@ code {
 .btn--ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
 
 .btn--icon { width: 34px; padding: 0; flex-shrink: 0; }
+.btn--sm { height: 28px; padding: 0 var(--s3); font-size: var(--text-sm); }
 .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 .btn[data-busy="true"] svg.spin { animation: spin 900ms linear infinite; }
@@ -449,19 +526,28 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--ink
 
 /* A tool that acts on what is already on screen, rather than a destination
    the user has to navigate away to. */
+/* Secondary controls, so they read as secondary. These were two full-width
+   white cards stacked above the board, and together with the old metric
+   tiles they pushed the first fixture off the fold — roughly 600px of
+   chrome before any data. Closed, each is now a single quiet line. */
 .tool {
+  background: transparent; border: 0; border-bottom: 1px solid var(--border);
+  border-radius: 0; margin-bottom: var(--s3); overflow: hidden;
+}
+.tool[open] {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg); margin-bottom: var(--s4); overflow: hidden;
+  border-radius: var(--r-lg);
 }
 .tool__toggle {
   display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3) var(--s5); min-height: 48px;
+  padding: var(--s2) 0; min-height: 36px;
   font-size: var(--text-md); font-weight: 600; color: var(--ink);
   cursor: pointer; list-style: none; user-select: none;
   transition: background var(--dur-1) var(--ease);
 }
 .tool__toggle::-webkit-details-marker { display: none; }
-.tool__toggle:hover { background: var(--surface-2); }
+.tool__toggle:hover { color: var(--accent-text); }
+.tool[open] > .tool__toggle { padding-inline: var(--s5); }
 .tool__toggle > svg { width: 17px; height: 17px; color: var(--accent-text); flex-shrink: 0; }
 .tool__hint { font-size: var(--text-xs); font-weight: 500; color: var(--ink-3); }
 .tool__toggle::after {
@@ -643,7 +729,9 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 [aria-sort="ascending"] .th-sort .i-sort__down,
 [aria-sort="descending"] .th-sort .i-sort__up { opacity: 0; }
 
-.board-table td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); }
+.board-table td { padding: var(--s3); border-bottom: 1px solid var(--border); height: 56px; }
+/* A taller bar reads as data rather than as a hairline decoration. */
+.board-table .probbar { height: 8px; }
 .board-table tbody tr.fx:hover td,
 .board-table tbody tr.fx.is-open td { background: var(--surface-2); }
 .board-table tr.fx--dead td { color: var(--ink-3); }
@@ -659,7 +747,7 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 .c-form   { width: 1%; white-space: nowrap; }
 .c-tip    { width: 1%; text-align: center; }
 .c-pred   { width: 1%; text-align: center; white-space: nowrap; }
-.c-prob   { width: 180px; }
+.c-prob   { width: 170px; }
 .c-ou     { width: 1%; white-space: nowrap; }
 .c-open   { width: 36px; }
 
@@ -671,23 +759,35 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   font-size: var(--text-xs); color: var(--ink-2);
 }
 
-.match { display: inline; }
-.match__side { font-size: var(--text-md); font-weight: 450; }
-.match__side.is-fav { font-weight: 660; }
-.match__v { font-size: var(--text-xs); color: var(--ink-3); margin: 0 var(--s2); }
+/* One line, always. Uneven row heights from wrapping club names were the
+   single worst thing about the dense board; shortTeam() in the client does
+   the trimming and this guarantees the result never wraps anyway. */
+.match { display: flex; align-items: baseline; gap: var(--s2); min-width: 0; }
+.match__side {
+  font-size: var(--text-md); font-weight: 450;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.match__side.is-fav { font-weight: 680; color: var(--ink); }
+.match__v { flex-shrink: 0; font-size: var(--text-xs); color: var(--ink-3); }
 .match__warn { display: inline-flex; vertical-align: -2px; color: var(--warn); margin-left: var(--s2); }
 .match__warn svg { width: 13px; height: 13px; }
 
-/* Form: oldest result first, the way every results feed prints it. */
-.form { display: inline-flex; gap: 2px; vertical-align: middle; }
-.form + .form { margin-left: var(--s2); padding-left: var(--s2); border-left: 1px solid var(--border); }
-.form__p {
-  display: grid; place-items: center; width: 15px; height: 15px;
-  border-radius: 3px; font-size: 9px; font-weight: 700; font-style: normal; color: #fff;
+/* Form: oldest result first, the way every results feed prints it.
+   Coloured letters, not filled chips. Ten saturated red and green squares
+   per row made form the loudest thing on the board — brighter than the tip
+   and the scoreline, which are what the row is actually for. Print results
+   tables have always set this as letters; it stays just as scannable and
+   stops competing. The letter carries the meaning, so colour is reinforcing
+   rather than load-bearing. */
+.form {
+  display: inline-flex; gap: 3px; vertical-align: middle;
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.02em;
 }
-.form__p--w { background: var(--pos); }
-.form__p--d { background: var(--ink-3); }
-.form__p--l { background: var(--neg); }
+.form + .form { margin-left: var(--s2); padding-left: var(--s2); border-left: 1px solid var(--border); }
+.form__p { font-style: normal; }
+.form__p--w { color: var(--pos); }
+.form__p--d { color: var(--ink-3); }
+.form__p--l { color: var(--neg); }
 
 /* Tinted rather than full-saturation: a whole column of solid pills
    vibrates, and the tip is not a call to action. */
@@ -701,13 +801,23 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 .tip--d { background: var(--warn-wash);   color: var(--warn); }
 .tip--a { background: var(--neg-wash);    color: var(--neg); }
 
-.pred { font-size: var(--text-md); font-weight: 620; font-variant-numeric: tabular-nums; }
+/* The scoreline is the headline of the row, so it is set in the display
+   face at display size. This is the one number a reader takes away. */
+.pred {
+  font-family: var(--font-display);
+  font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 .dash { color: var(--ink-3); }
 
-.prob { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px var(--s2); }
-.prob .probbar { grid-column: 1; grid-row: 1; }
-.prob__n { grid-column: 2; grid-row: 1; font-weight: 620; font-variant-numeric: tabular-nums; }
-.prob__sub { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* Figure first, bar beneath it at full width. Side by side, the bar was
+   squeezed into whatever the percentage left over — about 50px of a 180px
+   column — and three stubby segments read as a rendering fault rather than
+   as a distribution. */
+.prob { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 5px var(--s2); }
+.prob__n { grid-row: 1; grid-column: 1; font-size: var(--text-md); font-weight: 650; font-variant-numeric: tabular-nums; }
+.prob__sub { grid-row: 1; grid-column: 2; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.prob .probbar { grid-row: 2; grid-column: 1 / -1; min-width: 120px; }
 
 .ou { display: inline-flex; align-items: baseline; gap: var(--s2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .ou b { font-weight: 600; color: var(--ink); }
@@ -725,10 +835,22 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 
 /* Progressive column shedding. Each step drops the least load-bearing column
    still present; nothing dropped here is lost, because all of it is in the
-   expanded row, and everything returns once the layout stacks at 760px. */
-@media (max-width: 1180px) { .board-table .c-form { display: none; } }
-@media (max-width: 1000px) { .board-table .c-ou { display: none; } }
-@media (max-width: 860px)  { .board-table .c-league { display: none; } }
+   expanded row, and everything returns once the layout stacks at 760px.
+
+   Measured on the CONTAINER, not the viewport. Viewport breakpoints were
+   wrong here and shipped a real bug: the filter rail takes ~380px, so a
+   1440px window leaves the table about 1020px and it silently overflowed —
+   pushing the disclosure column off the right edge, which made it
+   impossible to expand a row at all. The table only ever cared how much
+   room it actually has.
+
+   Thresholds are set from the table's measured min-content width with each
+   column present (1231px for all nine), not guessed — the first cut has to
+   fire while the container is still ~1100px or the board overflows the page. */
+.board-table-wrap { container-type: inline-size; container-name: board; }
+@container board (max-width: 1210px) { .board-table .c-form { display: none; } }
+@container board (max-width: 980px)  { .board-table .c-ou { display: none; } }
+@container board (max-width: 840px)  { .board-table .c-league { display: none; } }
 
 /* ---- Stacked cards on a phone ------------------------------------------
    Inherits the shared .table-wrap stacking (each row becomes a card, each
@@ -736,30 +858,79 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
    set here: the disclosure pins to the card corner instead of becoming a
    labelled row, and the reasoning panel joins the card above it rather than
    floating as a second card. */
+/* ---- The fixture card on a phone ---------------------------------------
+   The shared .table-wrap stacking turns each cell into its own labelled
+   line. For a nine-column board that produced a ~520px card per fixture —
+   143 of them is 74,000px of scrolling, and "Kick-off", "Competition",
+   "Tip" repeated 143 times is more label than data.
+
+   The row becomes a four-line grid instead: meta, teams, form, then the
+   call. Around 110px per fixture, nothing hidden, and no repeated labels
+   because at this size the shape of each line identifies it. */
 @media (max-width: 760px) {
   .board-table { border: 0; background: transparent; }
+
+  .board-table tbody tr.fx {
+    display: grid; gap: var(--s2) var(--s3);
+    grid-template-columns: auto auto 1fr auto;
+    /* Totals rides the form line, right-aligned. Sharing the bottom line
+       with the probability put "fair 2.59" hard against "O2.5" with no
+       space between two unrelated numbers. */
+    grid-template-areas:
+      "when   when  league open"
+      "match  match match  match"
+      "form   form  form   ou"
+      "tip    pred  prob   prob";
+    align-items: center;
+    padding: var(--s3) var(--s4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
+    margin-bottom: var(--s3);
+  }
+  /* Undo the generic stacking: no block cells, no label prefixes. */
+  .board-table tbody tr.fx > td {
+    display: flex; align-items: center; width: auto;
+    padding: 0; border-bottom: 0; height: auto;
+  }
+  .board-table tbody tr.fx > td::before { content: none; }
+
+  .board-table .c-when   { grid-area: when; gap: var(--s2); }
+  .board-table .c-league { grid-area: league; justify-content: flex-end; min-width: 0; }
+  .board-table .c-match  { grid-area: match; }
+  .board-table .c-form   { grid-area: form; }
+  .board-table .c-tip    { grid-area: tip; }
+  .board-table .c-pred   { grid-area: pred; }
+  .board-table .c-prob   { grid-area: prob; }
+  .board-table .c-ou     { grid-area: ou; justify-content: flex-end; }
+  .board-table .c-open   { grid-area: open; justify-content: flex-end; }
+  /* Every column that was shed at intermediate widths is back. */
   .board-table .c-form, .board-table .c-ou, .board-table .c-league { display: flex; }
 
-  .board-table tbody tr.fx { position: relative; padding-right: 40px; }
-  .board-table td.c-open {
-    position: absolute; top: var(--s2); right: var(--s2);
-    width: auto; padding: 0; border-bottom: 0;
-  }
+  /* Kick-off reads as one line here rather than a stacked time and date. */
+  .when__t, .when__d { display: inline; }
+  .when__d { color: var(--ink-3); margin-left: var(--s2); }
+  .board-table .c-when { font-size: var(--text-sm); }
+  .match__side { font-size: var(--text-lg); }
+  .board-table .c-prob { min-width: 0; }
+  .prob { width: 100%; }
+
   .board-table tbody tr.fx.is-open {
     margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
   }
-
-  .board-table tr.fx-detail {
-    padding: 0; margin-top: -1px;
-    border-top: 0; border-radius: 0 0 var(--r-lg) var(--r-lg);
+  /* :not([hidden]) is load-bearing — a bare `display: block` here has the
+     same specificity as the [hidden] guard above and, being later in the
+     file, wins it, which ships every reasoning panel open and overlapping. */
+  .board-table tr.fx-detail:not([hidden]) {
+    display: block; padding: 0; margin: -1px 0 var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--border); border-top: 0;
+    border-radius: 0 0 var(--r-lg) var(--r-lg);
     box-shadow: var(--shadow-1);
   }
+  .board-table tr.fx-detail > td { display: block; width: 100%; padding: 0; border: 0; }
   .fx-detail__inner { padding: var(--s3) var(--s4) var(--s4); border-bottom: 0; }
-
-  /* The bar needs real width once it is on its own line. */
-  .prob { grid-template-columns: 1fr auto; flex: 1; }
-  .board-table td.c-prob { align-items: center; }
-  .board-table td.c-match { padding-right: var(--s5); }
 }
 
 .sr-only {
@@ -841,15 +1012,20 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 /* Replaces the old raw-error banner. States are named, not stack-traced, and
    the panel stays collapsed unless the user asks for it. */
 .coverage-panel {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r); overflow: hidden;
+  background: transparent; border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0; overflow: hidden;
+}
+.coverage-panel[open] {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
 }
 .coverage-panel > summary {
   display: flex; align-items: center; gap: var(--s2);
-  padding: var(--s3) var(--s4); min-height: 44px;
+  padding: var(--s2) 0; min-height: 36px;
   font-size: var(--text-sm); font-weight: 560; color: var(--ink-2);
   cursor: pointer; list-style: none; user-select: none;
 }
+.coverage-panel[open] > summary { padding-inline: var(--s4); }
 .coverage-panel > summary::-webkit-details-marker { display: none; }
 .coverage-panel > summary svg { width: 15px; height: 15px; color: var(--ink-3); flex-shrink: 0; }
 .coverage-panel > summary::after {

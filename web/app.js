@@ -492,7 +492,7 @@ function renderSummary() {
   const el = $("#sum-health");
   el.textContent = stale ? String(stale) : "0";
   el.dataset.tone = stale ? "warn" : "pos";
-  $("#sum-health-label").textContent = stale === 1 ? "Stale model" : "Stale models";
+  $("#sum-health-label").textContent = stale === 1 ? "stale model" : "stale models";
   el.title = stale
     ? `${stale} competition${stale === 1 ? "" : "s"} priced by a model that has not seen a match in over 60 days`
     : "Every model trained within the last 60 days";
@@ -547,6 +547,20 @@ function renderCoverage() {
 
 let rowId = 0;
 
+/** Feeds return legal club names — "Wolverhampton Wanderers FC", "SBV
+ *  Excelsior" — which wrapped to two and three lines and made every row a
+ *  different height, destroying the vertical rhythm a scan surface depends
+ *  on. Dropping the corporate affix is what every results service does and
+ *  is the difference between a board and a spreadsheet. The untouched name
+ *  stays in the title attribute and in the expanded row. */
+const CLUB_AFFIX = /^(fc|afc|sv|sc|bsc|vfl|vfb|ss|ssc|as|ac|us|ud|cd|cf|rc|rcd|sd|ca|club|fk|nk|hnk|bk|if|ik|gif|aik)\b[.\s]*|[\s.]*\b(fc|afc|cf|sc|ac|as|sv|bv|bk|if|sk|fk|kv|sd|cd|ud|cp|oa?fc)\.?$/gi;
+
+function shortTeam(name) {
+  const n = String(name || "").replace(CLUB_AFFIX, "").trim();
+  // Never return an empty string: a club literally called "FC" keeps its name.
+  return n.length >= 3 ? n : String(name || "");
+}
+
 /** Home v away, with the side the model tips carrying the emphasis. The
  *  favourite is marked by weight rather than colour, so it survives the
  *  forced-colors and monochrome-print paths the rest of the board honours. */
@@ -554,10 +568,12 @@ function matchCell(f, tip) {
   const warn = f.unmatched?.length
     ? `<span class="match__warn" title="${esc(f.unmatched.join(" and "))} not in the model; priced at competition-average strength">${icon("alert")}</span>`
     : "";
+  const side = (name, fav) =>
+    `<span class="match__side${fav ? " is-fav" : ""}" title="${esc(name)}">${esc(shortTeam(name))}</span>`;
   return `<span class="match">
-    <span class="match__side${tip?.code === "1" ? " is-fav" : ""}">${esc(f.home_team_live_name)}</span>
+    ${side(f.home_team_live_name, tip?.code === "1")}
     <span class="match__v" aria-label="versus">v</span>
-    <span class="match__side${tip?.code === "2" ? " is-fav" : ""}">${esc(f.away_team_live_name)}</span>
+    ${side(f.away_team_live_name, tip?.code === "2")}
   </span>${warn}`;
 }
 

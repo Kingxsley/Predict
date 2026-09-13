@@ -9,7 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/assets/app.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400..700&display=swap">
+<!-- Newsreader carries the masthead, view titles and the scoreline; Public Sans
+     carries every label, control and data cell. Pairing on a real contrast axis
+     (serif + grotesque) rather than two similar sans faces. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400..700&family=Public+Sans:wght@400..700&display=swap">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%231f66c4'/><path d='M4 11V7M8 11V4M12 11V9' stroke='white' stroke-width='1.8' stroke-linecap='round'/></svg>">
 <script>
   // Applied before first paint so the correct theme is never repainted.
@@ -59,13 +62,11 @@
 </svg>
 
 <header class="masthead">
-  <div class="brand">
-    <svg class="brand__mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <rect width="28" height="28" rx="7" fill="currentColor" opacity="0.12"/>
-      <path d="M8 19v-5M14 19V9M20 19v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-    </svg>
-    <div class="brand__name">Prediction Engine <span>· soccer &amp; AFL</span></div>
-  </div>
+  <a class="brand" href="#board">
+    <span class="brand__name">Prediction Engine</span>
+    <span class="brand__rule" aria-hidden="true"></span>
+    <span class="brand__kicker">Soccer &amp; AFL</span>
+  </a>
 
   <nav class="mainnav" id="mainnav" aria-label="Sections">
     <a href="#board" data-view="board">Board</a>
@@ -99,11 +100,7 @@
   <section class="view" id="view-board" aria-labelledby="board-title">
     <div class="view__head">
       <h1 id="board-title">Fixture board</h1>
-      <p class="view__lede">
-        Every upcoming fixture the live feeds return, priced by the model. Probabilities are aligned
-        column-wise so you can scan down a competition and compare at a glance; open a row for the
-        projection and the reasoning behind it.
-      </p>
+      <p class="view__lede">Every upcoming fixture the live feeds return, priced by the model.</p>
     </div>
 
     <div class="board">
@@ -152,31 +149,21 @@
       </details>
 
       <div>
-        <!-- A product opens on a summary, not a bare table. These four
-             read the state of the whole board at a glance, including the
-             one that is uncomfortable (stale models). -->
-        <div class="summary" id="board-summary" aria-live="polite">
-          <div class="summary__stat">
-            <span class="summary__value" id="sum-fixtures">–</span>
-            <span class="summary__label">Fixtures</span>
-          </div>
-          <div class="summary__stat">
-            <span class="summary__value" id="sum-feeds">–</span>
-            <span class="summary__label">Feeds live</span>
-          </div>
-          <div class="summary__stat">
-            <span class="summary__value" id="sum-next">–</span>
-            <span class="summary__label">Next start</span>
-          </div>
-          <div class="summary__stat">
-            <span class="summary__value" id="sum-health">–</span>
-            <span class="summary__label" id="sum-health-label">Stale models</span>
-          </div>
-          <div class="summary__actions">
-            <button class="btn btn--secondary" id="board-refresh" type="button">
-              <svg class="spin" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh
-            </button>
-          </div>
+        <!-- The state of the whole board as a single standfirst line,
+             including the uncomfortable one (stale models). This was four
+             big-number tiles; at that size they competed with the fixture
+             data for attention and pushed the table below the fold, which
+             is the opposite of what a board is for. -->
+        <div class="dekline" id="board-summary" aria-live="polite">
+          <p class="dekline__facts">
+            <b id="sum-fixtures">–</b> fixtures<span class="dekline__sep" aria-hidden="true">·</span>
+            <b id="sum-feeds">–</b> feeds live<span class="dekline__sep" aria-hidden="true">·</span>
+            next <b id="sum-next">–</b><span class="dekline__sep" aria-hidden="true">·</span>
+            <b id="sum-health">–</b> <span id="sum-health-label">stale models</span>
+          </p>
+          <button class="btn btn--secondary btn--sm" id="board-refresh" type="button">
+            <svg class="spin" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh
+          </button>
         </div>
         <p class="hint" id="board-meta" aria-live="polite" hidden></p>
         <div id="board-coverage"></div>
@@ -334,10 +321,7 @@
   <section class="view" id="view-performance" aria-labelledby="perf-title" hidden>
     <div class="view__head">
       <h1 id="perf-title">Performance</h1>
-      <p class="view__lede">
-        How the model has actually done: graded results from predictions this app made, and held-out
-        historical accuracy from the training runs. Both are unedited.
-      </p>
+      <p class="view__lede">How the model has actually done. Graded results and held-out accuracy, both unedited.</p>
     </div>
 
     <div class="segmented" role="tablist" aria-label="Performance view" id="perf-tabs">
@@ -347,8 +331,8 @@
 
     <div id="pane-record" role="tabpanel" aria-labelledby="tab-record">
       <p class="view__lede" style="margin-bottom:1.5rem">
-        Every prediction shown on the board is logged once, then graded against the real final score
-        from the same feed that supplied the fixture. Nothing is simulated or removed after the fact.
+        Every prediction is logged once, then graded against the real final score. Nothing is
+        simulated or removed after the fact.
       </p>
 <details class="rail rail--inline" id="record-filters">
       <summary class="rail__toggle">
