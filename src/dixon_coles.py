@@ -170,3 +170,32 @@ class DixonColesModel:
 
     def expected_goals(self, home: str, away: str):
         return self.lambdas(home, away)
+
+    def most_likely_score(self, home: str, away: str,
+                          outcome: str | None = None) -> tuple[int, int, float]:
+        """The single most probable exact scoreline, as (home, away, prob).
+
+        Rounding expected goals is NOT the same thing and is often wrong: a
+        1.6 - 1.2 fixture rounds to 2-1, while the actual modal scoreline is
+        1-1, because the Poisson mode sits below the mean. This reads the
+        mode off the same score matrix the 1X2 market is integrated from.
+
+        `outcome` ("H" / "D" / "A") restricts the search to scorelines that
+        produce that result. The board passes the calibrated pick, because
+        the headline tip comes from the blended+calibrated ensemble while the
+        matrix is raw Dixon-Coles — left unconstrained the two can disagree
+        and the table shows "Away win" next to a 2-1 home scoreline, which
+        reads as a bug even when both numbers are individually correct.
+        """
+        m = self.score_matrix(home, away)
+        if outcome:
+            mask = np.zeros_like(m, dtype=bool)
+            if outcome == "H":
+                mask[np.tril_indices_from(mask, -1)] = True
+            elif outcome == "A":
+                mask[np.triu_indices_from(mask, 1)] = True
+            else:
+                np.fill_diagonal(mask, True)
+            m = np.where(mask, m, 0.0)
+        h, a = np.unravel_index(int(np.argmax(m)), m.shape)
+        return int(h), int(a), float(m[h, a])

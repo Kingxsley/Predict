@@ -214,7 +214,7 @@ function route() {
    BOARD
    ========================================================================== */
 
-const board = { data: null, sport: "all", query: "", sort: "time", leagues: new Set() };
+const board = { data: null, sport: "all", query: "", sort: "time", dir: "asc", leagues: new Set() };
 
 async function loadBoard(force = false) {
   const btn = $("#board-refresh");
@@ -292,45 +292,118 @@ function updateFilterCount() {
 const kickoffKey = (f) => `${f.date || "9999-99-99"}T${f.time || "00:00"}`;
 const topProb = (p) => Math.max(p?.prob_home_win ?? 0, p?.prob_draw ?? 0, p?.prob_away_win ?? 0);
 
+/* ---------- derived prediction fields ------------------------------------
+   The board is a scan surface: every column here has to be readable at a
+   glance and comparable straight down the column, across competitions. */
+
+/** Bookmaker shorthand for the model's call. 1 / X / 2 is the notation the
+ *  whole category uses, so it is what the column shows; the full wording
+ *  lives in the title attribute and in the expanded row. */
+function tipFor(p, sport) {
+  const h = p.prob_home_win ?? 0, d = p.prob_draw ?? 0, a = p.prob_away_win ?? 0;
+  // AFL draws are ~1% and the market refunds them, so a two-way call is the
+  // honest reading there; only soccer can be tipped X.
+  if (sport === "soccer" && d > h && d > a) return { code: "X", prob: d, word: "Draw" };
+  return h >= a
+    ? { code: "1", prob: h, word: "Home win" }
+    : { code: "2", prob: a, word: "Away win" };
+}
+
+/** Totals call. Soccer runs on the 2.5 line the model is trained against;
+ *  the AFL line is per-fixture and comes back with the prediction. */
+function totalsFor(p, sport) {
+  if (sport === "soccer") {
+    const over = p.prob_over_2_5 ?? 0;
+    return over >= 0.5
+      ? { code: "O2.5", prob: over } : { code: "U2.5", prob: p.prob_under_2_5 ?? 0 };
+  }
+  const line = p.total_line ?? 169.5;
+  const over = p.prob_over_total ?? 0;
+  return over >= 0.5
+    ? { code: `O${line}`, prob: over } : { code: `U${line}`, prob: p.prob_under_total ?? 0 };
+}
+
+const predScore = (p) =>
+  isNum(p.predicted_score_home) && isNum(p.predicted_score_away)
+    ? `${p.predicted_score_home}–${p.predicted_score_away}` : "–";
+
+/** "L-L-D-L-L" -> five pills, oldest first. Already scoped to that team. */
+function formPills(results) {
+  if (!results) return "";
+  return `<span class="form">${results.split("-").slice(-5).map((r) => {
+    const k = r.trim().toUpperCase();
+    return `<i class="form__p form__p--${k === "W" ? "w" : k === "D" ? "d" : "l"}">${esc(k)}</i>`;
+  }).join("")}</span>`;
+}
+
+/** "England - Premier League" -> "Premier League". The country is dropped
+ *  because the column is already narrow and the full name stays in title. */
+const shortLeague = (name) => {
+  const parts = String(name || "").split(" - ");
+  return parts.length > 1 ? parts.slice(1).join(" - ") : name;
+};
+
+/* ---------- sorting ------------------------------------------------------
+   Column headers are the primary control (the category convention), and the
+   "Order by" select drives the same state for the two model-specific
+   orderings that are not plain columns. */
+
+const SORTS = {
+  time:   { label: "Kick-off",   get: (r) => kickoffKey(r.f) },
+  league: { label: "Competition", get: (r) => `${r.league}${kickoffKey(r.f)}` },
+  match:  { label: "Match",      get: (r) => (r.f.home_team_live_name || "").toLowerCase() },
+  tip:    { label: "Tip",        get: (r) => (r.tip ? r.tip.code : "~") },
+  prob:   { label: "Confidence", get: (r) => (r.tip ? r.tip.prob : -1) },
+};
+
+function sortRows(rows) {
+  const spec = SORTS[board.sort] || SORTS.time;
+  const dir = board.dir === "desc" ? -1 : 1;
+  return [...rows].sort((x, y) => {
+    const a = spec.get(x), b = spec.get(y);
+    const cmp = typeof a === "number" ? a - b : String(a).localeCompare(String(b));
+    // Kick-off is the stable tiebreak: two fixtures with the same tip or the
+    // same confidence should still read chronologically.
+    return cmp !== 0 ? cmp * dir : kickoffKey(x.f).localeCompare(kickoffKey(y.f));
+  });
+}
+
+const COLUMNS = [
+  { key: "time",   label: "Kick-off", sort: "time",   cls: "c-when" },
+  { key: "league", label: "Competition", sort: "league", cls: "c-league" },
+  { key: "match",  label: "Match",    sort: "match",  cls: "c-match" },
+  { key: "form",   label: "Form",     sort: null,     cls: "c-form" },
+  { key: "tip",    label: "Tip",      sort: "tip",    cls: "c-tip" },
+  { key: "pred",   label: "Score",    sort: null,     cls: "c-pred" },
+  { key: "prob",   label: "Probability", sort: "prob", cls: "c-prob" },
+  { key: "ou",     label: "Totals",   sort: null,     cls: "c-ou" },
+  { key: "open",   label: "",         sort: null,     cls: "c-open" },
+];
+
 function renderBoard(animate = false) {
   if (!board.data) return;
   const q = board.query.trim().toLowerCase();
   const hit = (...f) => !q || f.some((x) => String(x || "").toLowerCase().includes(q));
 
-  let shown = 0;
-  const blocks = [];
-
+  // Flatten every competition into one list. The league becomes a column
+  // rather than a section heading, which is what lets a single sort run
+  // across the whole board instead of only within one competition.
+  let rows = [];
   for (const g of boardGroups()) {
     if (board.sport !== "all" && g.sport !== board.sport) continue;
     if (board.leagues.size && !board.leagues.has(g.key)) continue;
-
-    let fixtures = g.fixtures.filter((f) =>
-      hit(f.home_team_live_name, f.away_team_live_name, g.league, f.venue));
-    if (!fixtures.length) continue;
-
-    fixtures = [...fixtures].sort((a, b) => {
-      if (board.sort === "time") return kickoffKey(a).localeCompare(kickoffKey(b));
-      const pa = topProb(a.prediction), pb = topProb(b.prediction);
-      return board.sort === "confidence" ? pb - pa : pa - pb;
-    });
-
-    shown += fixtures.length;
-    blocks.push(
-      `<section class="league-block">
-         <div class="league-block__head">
-           <h2>${esc(g.league)}</h2>
-           <span class="rail__count">${fixtures.length} fixture${fixtures.length === 1 ? "" : "s"}</span>
-           ${g.stale ? `<span class="badge badge--warn">${icon("alert")}Cached</span>` : ""}
-           ${g.modelStale ? `<span class="badge badge--warn" title="Last trained ${esc(g.modelDate)}">${icon("alert")}Model ${Math.floor(g.modelAge / 30)} months old</span>` : ""}
-         </div>
-         <div class="fixtures" data-animate="${animate}">
-           ${fixtures.map((f) => fixtureRow(f, g.sport)).join("")}
-         </div>
-       </section>`);
+    for (const f of g.fixtures) {
+      if (!hit(f.home_team_live_name, f.away_team_live_name, g.league, f.venue)) continue;
+      const p = f.prediction || {};
+      rows.push({
+        f, group: g, sport: g.sport, league: g.league, p,
+        tip: p.error ? null : tipFor(p, g.sport),
+      });
+    }
   }
 
   const content = $("#board-content");
-  if (!shown) {
+  if (!rows.length) {
     const filtered = q || board.leagues.size || board.sport !== "all";
     content.innerHTML = filtered
       ? emptyState("Nothing matches those filters",
@@ -343,13 +416,38 @@ function renderBoard(animate = false) {
           `<button class="btn btn--secondary" type="button" id="board-refetch">Re-fetch feeds</button>
            <a class="btn btn--ghost" href="#matchup">Custom matchup</a>`);
   } else {
-    content.innerHTML = blocks.join("");
+    rows = sortRows(rows);
+    const head = COLUMNS.map((c) => {
+      if (!c.sort) {
+        return `<th scope="col" class="${c.cls}">${
+          c.label ? esc(c.label) : `<span class="sr-only">Details</span>`}</th>`;
+      }
+      const active = board.sort === c.sort;
+      const dir = active ? board.dir : "none";
+      return `<th scope="col" class="${c.cls}" aria-sort="${active ? `${dir}ending` : "none"}">
+        <button type="button" class="th-sort" data-sort="${c.sort}" data-active="${active}">
+          ${esc(c.label)}<svg aria-hidden="true" class="th-sort__arrow"><use href="#i-sort"/></svg>
+        </button></th>`;
+    }).join("");
+
+    content.innerHTML = `
+      <div class="table-wrap board-table-wrap">
+        <table class="board-table" data-animate="${animate}">
+          <caption class="sr-only">
+            Upcoming fixtures priced by the model. Tip is the model's call in 1 / X / 2 notation,
+            Score is the most likely exact scoreline for that call, and Probability is the model's
+            confidence in it. Activate a row to open the full reasoning.
+          </caption>
+          <thead><tr>${head}</tr></thead>
+          <tbody>${rows.map(fixtureRow).join("")}</tbody>
+        </table>
+      </div>`;
   }
 
   const total = boardGroups().reduce((n, g) => n + g.fixtures.length, 0);
   const meta = $("#board-meta");
-  meta.textContent = shown === total ? "" : `Showing ${shown} of ${total} fixtures`;
-  meta.hidden = shown === total;
+  meta.textContent = rows.length === total ? "" : `Showing ${rows.length} of ${total} fixtures`;
+  meta.hidden = rows.length === total;
   updateFilterCount();
 }
 
@@ -449,88 +547,95 @@ function renderCoverage() {
 
 let rowId = 0;
 
-function fixtureRow(f, sport) {
-  const p = f.prediction || {};
-  const home = esc(f.home_team_live_name);
-  const away = esc(f.away_team_live_name);
-  const { time, day } = fmtKick(f.date, f.time);
-  const when = `<div class="fixture__when"><b>${esc(time)}</b>${esc(day)}</div>`;
+/** Home v away, with the side the model tips carrying the emphasis. The
+ *  favourite is marked by weight rather than colour, so it survives the
+ *  forced-colors and monochrome-print paths the rest of the board honours. */
+function matchCell(f, tip) {
+  const warn = f.unmatched?.length
+    ? `<span class="match__warn" title="${esc(f.unmatched.join(" and "))} not in the model; priced at competition-average strength">${icon("alert")}</span>`
+    : "";
+  return `<span class="match">
+    <span class="match__side${tip?.code === "1" ? " is-fav" : ""}">${esc(f.home_team_live_name)}</span>
+    <span class="match__v" aria-label="versus">v</span>
+    <span class="match__side${tip?.code === "2" ? " is-fav" : ""}">${esc(f.away_team_live_name)}</span>
+  </span>${warn}`;
+}
 
+function fixtureRow(r) {
+  const { f, sport, league, p } = r;
+  const { time, day } = fmtKick(f.date, f.time);
+  const span = COLUMNS.length;
+  const leagueCell =
+    `<span class="league-tag" title="${esc(league)}">${esc(shortLeague(league))}</span>`;
+  const when = `<span class="when__t">${esc(time)}</span><span class="when__d">${esc(day)}</span>`;
+
+  // A fixture the model could not price still belongs on the board — hiding
+  // it would quietly misrepresent the schedule — but it gets no tip columns.
   if (p.error) {
-    return `<div class="fixture"><div class="fixture__summary" style="cursor:default">
-      ${when}
-      <div class="fixture__teams">
-        <div class="fixture__team"><span class="side">H</span><span>${home}</span></div>
-        <div class="fixture__team"><span class="side">A</span><span>${away}</span></div>
-      </div>
-      <div class="odds" style="grid-column:span 2">
-        <span class="badge badge--mute">${icon("alert")} No price: ${esc(p.error)}</span>
-      </div>
-      <span></span>
-    </div></div>`;
+    return `<tr class="fx fx--dead">
+      ${td("Kick-off", when, "c-when")}
+      ${td("Competition", leagueCell, "c-league")}
+      <td class="c-match" data-lead>${matchCell(f, null)}</td>
+      <td class="c-dead" colspan="${span - 3}">
+        <span class="badge badge--mute">${icon("alert")}No price: ${esc(p.error)}</span>
+      </td>
+    </tr>`;
   }
 
   const id = `fx-${rowId++}`;
+  const tip = r.tip;
   const h = p.prob_home_win ?? 0, d = p.prob_draw ?? 0, a = p.prob_away_win ?? 0;
-  const best = Math.max(h, a);
+  const totals = totalsFor(p, sport);
 
-  // Both sports show a three-part bar summing to 100%. In the AFL the draw
-  // slice is genuinely tiny (~1%) rather than absent, so drawing it is the
-  // honest thing; only soccer gets a numeric draw cell, because a two-way
-  // AFL market refunds draws and the number would be noise in the scan.
+  // Three segments summing to 100%. The AFL draw slice is genuinely ~1%
+  // rather than absent, so it is drawn rather than dropped.
   const seg = (cls, v) => `<i class="${cls}" style="width:${((v ?? 0) * 100).toFixed(2)}%"></i>`;
-  const bar = seg("is-home", h) + seg("is-draw", d) + seg("is-away", a);
+  const barLabel = sport === "soccer"
+    ? `Home ${pct(h)}, draw ${pct(d)}, away ${pct(a)}`
+    : `Home ${pct(h)}, away ${pct(a)}`;
 
-  const cell = (kind, label, v) =>
-    `<span class="probcell"><i class="swatch swatch--${kind}"></i>${label}<b>${pct(v)}</b></span>`;
-  const isSoccer = sport === "soccer";
-  const cells = isSoccer
-    ? cell("home", "H", h) + cell("draw", "D", d) + cell("away", "A", a)
-    : cell("home", "H", h) + cell("away", "A", a);
-
-  let pickLabel, pickProb;
-  if (isSoccer && d > h && d > a) { pickLabel = "Draw"; pickProb = d; }
-  else if (best === h) { pickLabel = f.home_team_live_name; pickProb = h; }
-  else { pickLabel = f.away_team_live_name; pickProb = a; }
+  const form = p.rationale
+    ? `${formPills(p.rationale.home_form?.results)}${formPills(p.rationale.away_form?.results)}`
+    : "";
 
   const sub = sport === "afl" && isNum(p.predicted_margin_home)
     ? `${signed(p.predicted_margin_home)} pts`
-    : `fair ${num(1 / pickProb)}`;
+    : `fair ${num(1 / tip.prob)}`;
 
-  return `<div class="fixture">
-    <button class="fixture__summary" type="button" aria-expanded="false" aria-controls="${id}">
-      ${when}
-      <div class="fixture__teams">
-        <div class="fixture__team${best === h ? " fixture__team--fav" : ""}"><span class="side">H</span><span>${home}</span></div>
-        <div class="fixture__team${best === a ? " fixture__team--fav" : ""}"><span class="side">A</span><span>${away}</span></div>
-        ${f.venue ? `<div class="fixture__venue">${esc(f.venue)}${f.round ? ` · ${esc(f.round)}` : ""}</div>` : ""}
-        ${f.unmatched?.length ? `<div class="fixture__warn" title="Priced at competition-average strength">
-          ${icon("alert")}${f.unmatched.length === 2 ? "Both sides" : esc(f.unmatched[0])} not in the model
-        </div>` : ""}
-      </div>
-      <div class="odds">
-        <div class="probbar">${bar}</div>
-        <div class="probcells" style="--cols:${isSoccer ? 3 : 2}">${cells}</div>
-      </div>
-      <div class="fixture__pick">
-        <b>${esc(pickLabel)}</b>
-        <span>${pct(pickProb)} · ${esc(sub)}</span>
-      </div>
-      <span class="disclose">${icon("chevron")}</span>
-    </button>
-    <div class="fixture__detail" id="${id}" data-open="false"><div>
-      <div class="fixture__detail-inner">${
-        f.unmatched?.length
-          ? `<div class="callout callout--warn" style="margin-bottom:1rem">${icon("alert")}<div>
-               <strong>${esc(f.unmatched.join(" and "))}</strong>
-               ${f.unmatched.length === 2 ? "are" : "is"} not in this competition's training data,
-               so ${f.unmatched.length === 2 ? "they are" : "it is"} priced at competition-average
-               strength. Treat this line as much weaker evidence than the rest of the board.
-             </div></div>`
-          : ""
-      }${detailBody(p, sport)}</div>
-    </div></div>
-  </div>`;
+  return `<tr class="fx" data-row="${id}">
+    ${td("Kick-off", when, "c-when")}
+    ${td("Competition", leagueCell, "c-league")}
+    <td class="c-match" data-lead>${matchCell(f, tip)}</td>
+    ${td("Form", form || `<span class="dash">–</span>`, "c-form")}
+    ${td("Tip", `<span class="tip tip--${tip.code === "1" ? "h" : tip.code === "2" ? "a" : "d"}"
+           title="${esc(tip.word)} · ${pct(tip.prob)}">${tip.code}</span>`, "c-tip")}
+    ${td("Score", `<span class="pred">${predScore(p)}</span>`, "c-pred")}
+    ${td("Probability", `<span class="prob">
+        <span class="probbar" role="img" aria-label="${esc(barLabel)}">${
+          seg("is-home", h) + seg("is-draw", d) + seg("is-away", a)}</span>
+        <b class="prob__n">${pct(tip.prob)}</b>
+        <span class="prob__sub">${esc(sub)}</span>
+      </span>`, "c-prob")}
+    ${td("Totals", `<span class="ou">${esc(totals.code)}<b>${pct(totals.prob)}</b></span>`, "c-ou")}
+    <td class="c-open">
+      <button class="disclose" type="button" aria-expanded="false" aria-controls="${id}">
+        <span class="sr-only">Reasoning for ${esc(f.home_team_live_name)} v ${esc(f.away_team_live_name)}</span>
+        ${icon("chevron")}
+      </button>
+    </td>
+  </tr>
+  <tr class="fx-detail" id="${id}" hidden>
+    <td colspan="${span}"><div class="fx-detail__inner">${
+      f.unmatched?.length
+        ? `<div class="callout callout--warn" style="margin-bottom:1rem">${icon("alert")}<div>
+             <strong>${esc(f.unmatched.join(" and "))}</strong>
+             ${f.unmatched.length === 2 ? "are" : "is"} not in this competition's training data,
+             so ${f.unmatched.length === 2 ? "they are" : "it is"} priced at competition-average
+             strength. Treat this line as much weaker evidence than the rest of the board.
+           </div></div>`
+        : ""
+    }${detailBody(p, sport)}</div></td>
+  </tr>`;
 }
 
 function detailBody(p, sport) {
@@ -1336,7 +1441,15 @@ function init() {
 
   /* --- board --- */
   $("#board-refresh").addEventListener("click", () => loadBoard(true));
-  $("#board-sort").addEventListener("change", (e) => { board.sort = e.target.value; renderBoard(); });
+  // The select covers the two orderings that are not plain columns; both it
+  // and the column headers write the same (sort, dir) state.
+  $("#board-sort").addEventListener("change", (e) => {
+    const v = e.target.value;
+    if (v === "confidence") { board.sort = "prob"; board.dir = "desc"; }
+    else if (v === "closest") { board.sort = "prob"; board.dir = "asc"; }
+    else { board.sort = "time"; board.dir = "asc"; }
+    renderBoard();
+  });
   $("#board-search").addEventListener("input", debounce((e) => {
     board.query = e.target.value;
     renderBoard();
@@ -1362,12 +1475,34 @@ function init() {
       renderBoard();
       return;
     }
-    const summary = ev.target.closest(".fixture__summary[aria-controls]");
-    if (!summary) return;
-    const panel = document.getElementById(summary.getAttribute("aria-controls"));
-    const open = summary.getAttribute("aria-expanded") !== "true";
-    summary.setAttribute("aria-expanded", String(open));
-    panel.dataset.open = String(open);
+    // Sorting a column the board is already sorted by flips the direction;
+    // a new column starts in its natural direction — chronological for
+    // kick-off and alphabetical for text, but strongest-first for a
+    // probability, because nobody opens a board looking for its worst call.
+    const sortBtn = ev.target.closest(".th-sort[data-sort]");
+    if (sortBtn) {
+      const key = sortBtn.dataset.sort;
+      if (board.sort === key) board.dir = board.dir === "asc" ? "desc" : "asc";
+      else { board.sort = key; board.dir = key === "prob" ? "desc" : "asc"; }
+      $("#board-sort").value =
+        board.sort === "time" && board.dir === "asc" ? "time"
+          : board.sort === "prob" && board.dir === "desc" ? "confidence"
+          : board.sort === "prob" ? "closest"
+          : "column";
+      renderBoard();
+      // Sorting replaced the whole table, so focus has nowhere to return to
+      // unless it is put back on the header that was just activated.
+      $(`.th-sort[data-sort="${key}"]`)?.focus();
+      return;
+    }
+
+    const toggle = ev.target.closest(".disclose[aria-controls]");
+    if (!toggle) return;
+    const panel = document.getElementById(toggle.getAttribute("aria-controls"));
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", String(open));
+    panel.hidden = !open;
+    toggle.closest("tr")?.classList.toggle("is-open", open);
   });
 
   /* --- matchup --- */

@@ -87,6 +87,12 @@ def predict_soccer(div: str, home: str, away: str,
     over, under = dc.predict_over_under(home, away, 2.5)
     btts_yes, btts_no = dc.predict_btts(home, away)
 
+    # Headline scoreline, constrained to the outcome the calibrated ensemble
+    # actually picks. See DixonColes.most_likely_score for why it is not the
+    # unconstrained mode and not rounded expected goals.
+    pick = "HDA"[int(np.argmax(final))]
+    score_h, score_a, score_p = dc.most_likely_score(home, away, outcome=pick)
+
     result = {
         "division": div,
         "league": art["league"],
@@ -98,6 +104,9 @@ def predict_soccer(div: str, home: str, away: str,
         "prob_away_win": float(final[2]),
         "expected_goals_home": float(lam),
         "expected_goals_away": float(mu),
+        "predicted_score_home": score_h,
+        "predicted_score_away": score_a,
+        "prob_predicted_score": score_p,
         "prob_over_2_5": float(over),
         "prob_under_2_5": float(under),
         "prob_btts_yes": float(btts_yes),
@@ -144,6 +153,14 @@ def predict_afl(home: str, away: str, venue: str = None, game_date: str = None,
         "prob_draw": pred["prob_draw"],
         "predicted_margin_home": pred["predicted_margin_home"],
         "predicted_total_points": pred["predicted_total_points"],
+        # Projected scoreboard, purely a restatement of the margin and total
+        # the model already predicts (h = (total + margin) / 2). It is not an
+        # independent estimate and carries no extra information; it exists so
+        # the board can show a scoreline for AFL the way it does for soccer.
+        "predicted_score_home": int(round(
+            (pred["predicted_total_points"] + pred["predicted_margin_home"]) / 2)),
+        "predicted_score_away": int(round(
+            (pred["predicted_total_points"] - pred["predicted_margin_home"]) / 2)),
         "prob_over_total": pred["prob_over_total"],
         "prob_under_total": pred["prob_under_total"],
         "total_line": pred["total_line"],

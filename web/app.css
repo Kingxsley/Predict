@@ -526,97 +526,35 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--ink
 .rail--inline .field:has(.segmented) { width: auto; }
 .rail--inline .field--actions { flex-direction: row; gap: var(--s2); margin-left: auto; width: auto; }
 
-.league-block { margin-bottom: var(--s6); scroll-margin-top: 80px; }
-.league-block__head {
-  display: flex; align-items: baseline; gap: var(--s3);
-  padding-bottom: var(--s2); margin-bottom: var(--s2);
-  border-bottom: 1px solid var(--border);
-}
-.league-block__head h2 { font-size: var(--text-md); font-weight: 620; }
-.league-block__head .rail__count { margin-left: 0; }
-
-/* The fixture row. Not a card — a row, so probabilities align column-wise
-   across every fixture and can be scanned vertically. */
+/* Loading skeleton container. The board's own rows are a table now; this
+   stays because the skeleton still renders as simple stacked blocks. */
 .fixtures { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
 .fixtures > * + * { border-top: 1px solid var(--border); }
 
-.fixture { display: block; }
-.fixture__summary {
-  display: grid;
-  grid-template-columns: 86px minmax(150px, 1.4fr) minmax(220px, 1.1fr) minmax(120px, 0.8fr) 28px;
-  align-items: center; gap: var(--s4);
-  width: 100%; padding: var(--s3) var(--s4);
-  font: inherit; text-align: left; color: inherit;
-  background: transparent; border: 0; cursor: pointer;
-  transition: background var(--dur-1) var(--ease);
-}
-.fixture__summary:hover { background: var(--surface-2); }
-.fixture__summary:focus-visible { outline-offset: -2px; }
-
-.fixture__when { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.35; }
-.fixture__when b { display: block; font-size: var(--text-md); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-
-.fixture__teams { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.fixture__team { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
-.fixture__team span {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--text-md); font-weight: 520;
-}
-.fixture__team--fav span { font-weight: 620; }
-.side {
-  flex-shrink: 0; width: 14px;
-  font-size: 10px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.02em;
-}
-
-/* Stacked outcome bar + aligned numeric cells. Identity never comes from
-   colour alone: each cell carries its own H / D / A label and a swatch. */
-.odds { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+/* Stacked outcome bar, shared by the board table and the accumulator.
+   Width (not scaleX) is deliberate and is the only correct property: these
+   are stacked flex segments that must displace each other to sum to 100%,
+   which a transform cannot express. It runs once per row on first paint via
+   @starting-style, on three 6px-tall elements, and is disabled entirely
+   under prefers-reduced-motion. */
 .probbar { display: flex; gap: 2px; height: 6px; }
-/* Width (not scaleX) is deliberate here and is the only correct property:
-   these are stacked flex segments that must displace each other to sum to
-   100%, which a transform cannot express. It runs once per row on first
-   paint via @starting-style, on three 6px-tall elements, and is disabled
-   entirely under prefers-reduced-motion. */
 .probbar > i {
   display: block; border-radius: 2px; min-width: 2px;
   transition: width var(--dur-3) var(--ease-expo);
 }
-/* Gated on data-animate so the bars grow in when fresh data lands, but not on
-   every keystroke while filtering an already-loaded board. */
-@starting-style { .fixtures[data-animate="true"] .probbar > i { width: 0; } }
+/* Gated on data-animate so the bars grow in when fresh data lands, but not
+   on every keystroke while filtering an already-loaded board. */
+@starting-style { .board-table[data-animate="true"] .probbar > i { width: 0; } }
 .probbar > i.is-home { background: var(--home); }
 .probbar > i.is-draw { background: var(--draw); }
 .probbar > i.is-away { background: var(--away); }
 
-.probcells { display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); gap: var(--s2); }
-.probcell { display: flex; align-items: baseline; gap: 5px; font-size: var(--text-xs); color: var(--ink-3); }
-.probcell b { font-size: var(--text-md); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-.swatch { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; align-self: center; }
-.swatch--home { background: var(--home); } .swatch--draw { background: var(--draw); } .swatch--away { background: var(--away); }
-
-.fixture__pick { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.fixture__pick b { font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fixture__pick span { font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-
 .disclose {
   display: grid; place-items: center; width: 28px; height: 28px;
   color: var(--ink-3); border-radius: var(--r-sm);
+  background: none; border: 0; cursor: pointer;
 }
-.disclose svg { width: 14px; height: 14px; transition: transform var(--dur-2) var(--ease); }
-.fixture__summary[aria-expanded="true"] .disclose svg { transform: rotate(90deg); }
-
-/* Expanding detail: grid-rows 0fr→1fr animates without measuring heights. */
-.fixture__detail {
-  display: grid; grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-3) var(--ease);
-}
-.fixture__detail[data-open="true"] { grid-template-rows: 1fr; }
-.fixture__detail > div { overflow: hidden; }
-.fixture__detail-inner {
-  padding: var(--s4) var(--s4) var(--s5) calc(86px + var(--s4) + var(--s4));
-  background: var(--surface-2);
-  border-top: 1px solid var(--border);
-}
+.disclose:hover { color: var(--ink); background: var(--surface-3); }
 
 .readouts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); margin-bottom: var(--s4); }
 .readout { font-size: var(--text-xs); color: var(--ink-3); }
@@ -654,6 +592,181 @@ tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--surface-2); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--text-xs); color: var(--ink-3); text-align: left; }
+
+/* ==========================================================================
+   THE BOARD — one dense table across every competition
+   --------------------------------------------------------------------------
+   The board is a scan surface, not a reading surface. Every competition is
+   flattened into a single sortable grid so a Tip in the Championship can be
+   compared against one in La Liga without navigating between sections, which
+   is what grouping by league made impossible.
+
+   Density is the point, so type steps down to --text-sm and every numeric
+   column is tabular. Identity never comes from colour alone: the Tip pill
+   carries its own 1 / X / 2 glyph, form pills carry W / D / L, and the
+   probability bar is labelled for screen readers.
+   ========================================================================== */
+
+/* Deliberately NOT a horizontal scroller. `overflow-x: auto` would make this
+   a scroll container, and a scroll container cannot host a header that
+   sticks to the viewport — you would lose the column names exactly when a
+   long board makes them matter. Width is handled instead by dropping the
+   least load-bearing column at each breakpoint, and by stacking below 760px. */
+.board-table-wrap { overflow: visible; border: 0; background: transparent; }
+.board-table {
+  width: 100%; border-collapse: collapse; font-size: var(--text-sm);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.board-table thead th {
+  position: sticky; top: 56px; z-index: var(--z-sticky);
+  padding: var(--s2) var(--s3);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.th-sort {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: inherit; color: inherit; background: none; border: 0;
+  padding: 2px 4px; margin: -2px -4px; border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.th-sort:hover { color: var(--ink); background: var(--surface-3); }
+.th-sort[data-active="true"] { color: var(--accent-text); }
+.th-sort__arrow { width: 12px; height: 12px; flex-shrink: 0; }
+/* An unsorted column shows both chevrons faintly, which is what advertises
+   that it can be sorted at all; the active column shows only its direction. */
+.th-sort .i-sort__up, .th-sort .i-sort__down { opacity: 0.35; }
+[aria-sort="ascending"] .th-sort .i-sort__up,
+[aria-sort="descending"] .th-sort .i-sort__down { opacity: 1; }
+[aria-sort="ascending"] .th-sort .i-sort__down,
+[aria-sort="descending"] .th-sort .i-sort__up { opacity: 0; }
+
+.board-table td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); }
+.board-table tbody tr.fx:hover td,
+.board-table tbody tr.fx.is-open td { background: var(--surface-2); }
+.board-table tr.fx--dead td { color: var(--ink-3); }
+/* `hidden` on the detail row has to keep winning over the display value the
+   stacked layout sets below, or every reasoning panel ships open. */
+.board-table tr[hidden] { display: none; }
+
+/* Match takes the slack; every other column is content-width so the numbers
+   stay aligned down the page. */
+.c-when   { width: 1%; white-space: nowrap; }
+.c-league { width: 1%; max-width: 190px; }
+.c-match  { width: auto; min-width: 190px; }
+.c-form   { width: 1%; white-space: nowrap; }
+.c-tip    { width: 1%; text-align: center; }
+.c-pred   { width: 1%; text-align: center; white-space: nowrap; }
+.c-prob   { width: 180px; }
+.c-ou     { width: 1%; white-space: nowrap; }
+.c-open   { width: 36px; }
+
+.when__t { display: block; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.when__d { display: block; font-size: var(--text-xs); color: var(--ink-3); }
+
+.league-tag {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-xs); color: var(--ink-2);
+}
+
+.match { display: inline; }
+.match__side { font-size: var(--text-md); font-weight: 450; }
+.match__side.is-fav { font-weight: 660; }
+.match__v { font-size: var(--text-xs); color: var(--ink-3); margin: 0 var(--s2); }
+.match__warn { display: inline-flex; vertical-align: -2px; color: var(--warn); margin-left: var(--s2); }
+.match__warn svg { width: 13px; height: 13px; }
+
+/* Form: oldest result first, the way every results feed prints it. */
+.form { display: inline-flex; gap: 2px; vertical-align: middle; }
+.form + .form { margin-left: var(--s2); padding-left: var(--s2); border-left: 1px solid var(--border); }
+.form__p {
+  display: grid; place-items: center; width: 15px; height: 15px;
+  border-radius: 3px; font-size: 9px; font-weight: 700; font-style: normal; color: #fff;
+}
+.form__p--w { background: var(--pos); }
+.form__p--d { background: var(--ink-3); }
+.form__p--l { background: var(--neg); }
+
+/* Tinted rather than full-saturation: a whole column of solid pills
+   vibrates, and the tip is not a call to action. */
+.tip {
+  display: inline-grid; place-items: center;
+  min-width: 26px; height: 24px; padding: 0 var(--s2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-md); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.tip--h { background: var(--accent-wash); color: var(--accent-text); }
+.tip--d { background: var(--warn-wash);   color: var(--warn); }
+.tip--a { background: var(--neg-wash);    color: var(--neg); }
+
+.pred { font-size: var(--text-md); font-weight: 620; font-variant-numeric: tabular-nums; }
+.dash { color: var(--ink-3); }
+
+.prob { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px var(--s2); }
+.prob .probbar { grid-column: 1; grid-row: 1; }
+.prob__n { grid-column: 2; grid-row: 1; font-weight: 620; font-variant-numeric: tabular-nums; }
+.prob__sub { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.ou { display: inline-flex; align-items: baseline; gap: var(--s2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ou b { font-weight: 600; color: var(--ink); }
+
+.board-table .disclose { margin-inline: auto; }
+.board-table .disclose svg { width: 14px; height: 14px; transition: transform var(--dur-2) var(--ease); }
+.board-table .disclose[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+/* The expanded reasoning row. A plain full-width cell rather than the
+   grid-rows 0fr→1fr animation used elsewhere: inside a table a row is either
+   in the layout or it is not, and `hidden` is the honest expression of that
+   — it also keeps the row out of the accessibility tree while closed. */
+.fx-detail > td { padding: 0; background: var(--surface-2); }
+.fx-detail__inner { padding: var(--s4) var(--s4) var(--s5); border-bottom: 2px solid var(--border-strong); }
+
+/* Progressive column shedding. Each step drops the least load-bearing column
+   still present; nothing dropped here is lost, because all of it is in the
+   expanded row, and everything returns once the layout stacks at 760px. */
+@media (max-width: 1180px) { .board-table .c-form { display: none; } }
+@media (max-width: 1000px) { .board-table .c-ou { display: none; } }
+@media (max-width: 860px)  { .board-table .c-league { display: none; } }
+
+/* ---- Stacked cards on a phone ------------------------------------------
+   Inherits the shared .table-wrap stacking (each row becomes a card, each
+   cell prefixed with its column name). Only the board-specific parts are
+   set here: the disclosure pins to the card corner instead of becoming a
+   labelled row, and the reasoning panel joins the card above it rather than
+   floating as a second card. */
+@media (max-width: 760px) {
+  .board-table { border: 0; background: transparent; }
+  .board-table .c-form, .board-table .c-ou, .board-table .c-league { display: flex; }
+
+  .board-table tbody tr.fx { position: relative; padding-right: 40px; }
+  .board-table td.c-open {
+    position: absolute; top: var(--s2); right: var(--s2);
+    width: auto; padding: 0; border-bottom: 0;
+  }
+  .board-table tbody tr.fx.is-open {
+    margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  }
+
+  .board-table tr.fx-detail {
+    padding: 0; margin-top: -1px;
+    border-top: 0; border-radius: 0 0 var(--r-lg) var(--r-lg);
+    box-shadow: var(--shadow-1);
+  }
+  .fx-detail__inner { padding: var(--s3) var(--s4) var(--s4); border-bottom: 0; }
+
+  /* The bar needs real width once it is on its own line. */
+  .prob { grid-template-columns: 1fr auto; flex: 1; }
+  .board-table td.c-prob { align-items: center; }
+  .board-table td.c-match { padding-right: var(--s5); }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
 
 .badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -763,17 +876,11 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   color: var(--warn); font-weight: 600;
 }
 
-.fixture__warn {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--text-xs); font-weight: 600; color: var(--warn);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.fixture__warn svg { width: 11px; height: 11px; flex-shrink: 0; }
-
-.fixture__venue {
-  font-size: var(--text-xs); color: var(--ink-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+/* Legend swatches, used by the matchup view's outcome bars. */
+.swatch { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; align-self: center; }
+.swatch--home { background: var(--home); }
+.swatch--draw { background: var(--draw); }
+.swatch--away { background: var(--away); }
 
 .more-row {
   display: flex; align-items: center; gap: var(--s4);
@@ -880,20 +987,12 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .brand__name span { display: none; }
   .model-status { display: none; }
 
-  /* Fixture row becomes a stacked block; probabilities stay in aligned
-     columns so vertical comparison still works. */
-  .fixture__summary, .skel-row {
+  /* The loading skeleton collapses to two stacked bars. */
+  .skel-row {
     grid-template-columns: 1fr auto;
-    grid-template-areas: "teams when" "odds odds" "pick chev";
     gap: var(--s3);
     padding: var(--s4);
   }
-  .fixture__when  { grid-area: when; text-align: right; }
-  .fixture__teams { grid-area: teams; }
-  .odds           { grid-area: odds; }
-  .fixture__pick  { grid-area: pick; }
-  .disclose       { grid-area: chev; justify-self: end; width: 36px; height: 36px; }
-  .fixture__detail-inner { padding-left: var(--s4); }
   .skel-row > .skeleton:nth-child(n+4) { display: none; }
 }
 
@@ -1007,7 +1106,6 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .outcomes { grid-template-columns: 1fr; }
   .colophon { grid-template-columns: 1fr; gap: var(--s4); }
   .readouts { gap: var(--s2) var(--s4); }
-  .fixture__detail-inner { padding: var(--s3) var(--s4) var(--s4); }
 }
 
 /* Respect the notch / rounded corners on modern phones. */
@@ -1037,11 +1135,15 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 @media print {
   .masthead, .rail, .toolbar, .disclose { display: none !important; }
   .shell { max-width: none; padding: 0; }
-  .fixtures, .table-wrap, .panel { border-color: #999; box-shadow: none; }
-  .fixture__detail { grid-template-rows: 1fr !important; }
+  .fixtures, .table-wrap, .board-table, .panel { border-color: #999; box-shadow: none; }
+  /* Print every reasoning panel, not just the ones left open on screen. */
+  .board-table tr.fx-detail[hidden] { display: table-row !important; }
 }
 
 @media (forced-colors: active) {
   .probbar > i, .swatch, .meter__fill, .divbar i, .outcome__bar i { forced-color-adjust: none; }
-  .fixture__summary:hover, .rail__item[aria-pressed="true"] { border: 1px solid; }
+  .board-table tbody tr.fx:hover td, .rail__item[aria-pressed="true"] { border: 1px solid; }
+  /* Tip and form pills lose their tint in forced colours, so give them an
+     outline — the glyph alone already carries the meaning. */
+  .tip, .form__p { border: 1px solid; }
 }
