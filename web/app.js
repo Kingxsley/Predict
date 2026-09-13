@@ -1034,7 +1034,7 @@ function accaLeg(leg, i) {
 // 100-row page that is a comfortable scroll on a desktop becomes 30,000+
 // pixels on a phone. Page size follows the layout.
 const pageSize = () => (matchMedia("(max-width: 760px)").matches ? 25 : 100);
-const record = { data: null, sport: "all", limit: pageSize() };
+const record = { data: null, sport: "all", limit: pageSize(), sort: null, dir: "asc" };
 
 async function loadRecord() {
   const box = $("#log-content");
@@ -1077,19 +1077,60 @@ function recordRows() {
     return true;
   });
 
-  // Settled first. The server sorts by date descending, which put every
-  // unplayed fixture above every result — 142 of 211 rows at one point, so
-  // the whole first page read "Pending" and the track record this page
-  // exists to show was two clicks below the fold. Within the settled block
-  // the newest result leads; pending fixtures run in kick-off order, so the
-  // next match to be graded is the first one under the divider.
+  // Default: settled first. The server sorts by date descending, which put
+  // every unplayed fixture above every result — 142 of 211 rows at one
+  // point, so the whole first page read "Pending" and the track record this
+  // page exists to show was two clicks below the fold. Within the settled
+  // block the newest result leads; pending fixtures run in kick-off order,
+  // so the next match to be graded is the first one under the divider.
+  if (!record.sort) {
+    return rows.sort((a, b) => {
+      const sa = isSettled(a), sb = isSettled(b);
+      if (sa !== sb) return sa ? -1 : 1;
+      const da = a.date || "", db = b.date || "";
+      return sa ? db.localeCompare(da) : da.localeCompare(db);
+    });
+  }
+
+  const spec = REC_SORTS[record.sort];
+  const dir = record.dir === "desc" ? -1 : 1;
   return rows.sort((a, b) => {
-    const sa = isSettled(a), sb = isSettled(b);
-    if (sa !== sb) return sa ? -1 : 1;
-    const da = a.date || "", db = b.date || "";
-    return sa ? db.localeCompare(da) : da.localeCompare(db);
+    const x = spec.get(a), y = spec.get(b);
+    const cmp = typeof x === "number" ? x - y : String(x).localeCompare(String(y));
+    return cmp !== 0 ? cmp * dir : (b.date || "").localeCompare(a.date || "");
   });
 }
+
+/* Column sorts for the track record. "Result" sorts by whether the call came
+   in, which is the question the page is actually asked — not alphabetically
+   by team name, which would be sorting the label rather than the outcome. */
+const marketOf = (e, key) =>
+  (e.markets || {})[key === "result" ? (e.sport === "afl" ? "h2h" : "1x2")
+    : key === "secondary" ? "btts"
+    : e.sport === "afl" ? "total_points" : "over_under_2_5"] || {};
+const outcomeRank = (m) =>
+  !("actual" in m) ? -1 : m.correct ? 2 : 0;
+
+const REC_SORTS = {
+  fixture: { get: (e) => `${e.home} ${e.away}`.toLowerCase() },
+  date:    { get: (e) => e.date || "" },
+  league:  { get: (e) => e.league || "" },
+  result:    { get: (e) => outcomeRank(marketOf(e, "result")) },
+  secondary: { get: (e) => outcomeRank(marketOf(e, "secondary")) },
+  totals:    { get: (e) => outcomeRank(marketOf(e, "totals")) },
+  status:  { get: (e) => (isSettled(e) ? 2 : e.graded ? 1 : 0) },
+};
+
+const REC_COLUMNS = [
+  { key: "fixture",   label: "Fixture" },
+  { key: "date",      label: "Date" },
+  { key: "league",    label: "Competition" },
+  { key: "result",    label: "Result" },
+  { key: "secondary", label: "Secondary" },
+  { key: "totals",    label: "Totals" },
+  { key: null,        label: "Score" },
+  { key: "status",    label: "Status" },
+];
 
 const pickLabel = (e, market, pick) => {
   if (market === "1x2") return pick === "H" ? e.home : pick === "A" ? e.away : "Draw";
@@ -1173,17 +1214,22 @@ function renderRecord() {
   } else {
     const page = rows.slice(0, record.limit);
     html += `<div class="table-wrap"><table>
-      <thead><tr>
-        <th scope="col">Fixture</th><th scope="col">Date</th><th scope="col">Competition</th>
-        <th scope="col">Result</th><th scope="col">Secondary</th>
-        <th scope="col">Totals</th><th scope="col">Score</th><th scope="col">Status</th>
-      </tr></thead>
+      <thead><tr>${REC_COLUMNS.map((c) => {
+        if (!c.key) return `<th scope="col">${esc(c.label)}</th>`;
+        const on = record.sort === c.key;
+        return `<th scope="col" aria-sort="${on ? `${record.dir}ending` : "none"}">
+          <button type="button" class="th-sort" data-rsort="${c.key}" data-active="${on}">
+            ${esc(c.label)}<svg aria-hidden="true" class="th-sort__arrow"><use href="#i-sort"/></svg>
+          </button></th>`;
+      }).join("")}</tr></thead>
       <tbody>${page.map((e, i) => {
         const afl = e.sport === "afl";
         // One divider where results stop and unplayed fixtures begin, so the
         // switch from record to schedule is visible rather than something
         // you infer from the Status column changing.
-        const divider = i > 0 && isSettled(page[i - 1]) && !isSettled(e)
+        // Only meaningful in the default order, where the table really is
+        // partitioned; under a column sort the two states interleave.
+        const divider = !record.sort && i > 0 && isSettled(page[i - 1]) && !isSettled(e)
           ? `<tr class="rec-split"><td colspan="8">
                Not yet played — ${rows.filter((x) => !isSettled(x)).length} awaiting a result
              </td></tr>`
@@ -1532,10 +1578,13 @@ function init() {
     else { board.sort = "time"; board.dir = "asc"; }
     renderBoard();
   });
+  // 60ms, not 160: filtering is a pure client-side re-render over data that
+  // is already in memory, so the debounce only needs to coalesce keystrokes,
+  // not protect a request. At 160ms it read as lag.
   $("#board-search").addEventListener("input", debounce((e) => {
     board.query = e.target.value;
     renderBoard();
-  }, 160));
+  }, 60));
   pressGroup($("#board-sport"), (s) => { board.sport = s; renderBoard(); });
 
   $("#board-leagues").addEventListener("click", (ev) => {
@@ -1620,8 +1669,12 @@ function init() {
 
   /* --- track record --- */
   const refilter = () => { record.limit = pageSize(); renderRecord(); };
+  // "input" as well as "change": a date field fires change only once the
+  // value is committed, which on a mobile date picker means after the sheet
+  // is dismissed — the filter looked like it had been ignored until then.
   for (const id of ["#log-from", "#log-to", "#log-league"]) {
     $(id).addEventListener("change", refilter);
+    $(id).addEventListener("input", refilter);
   }
   pressGroup($("#log-sport"), (s) => { record.sport = s; fillRecordLeagues(); refilter(); });
   $("#log-clear").addEventListener("click", () => {
@@ -1633,6 +1686,24 @@ function init() {
   });
   $("#log-export").addEventListener("click", exportRecordCsv);
   $("#log-content").addEventListener("click", (ev) => {
+    const sortBtn = ev.target.closest(".th-sort[data-rsort]");
+    if (sortBtn) {
+      const key = sortBtn.dataset.rsort;
+      if (record.sort === key) {
+        // Third click returns to the default settled-first order rather than
+        // trapping the reader in a column they only wanted to glance at.
+        if (record.dir === "desc") { record.sort = null; record.dir = "asc"; }
+        else record.dir = "desc";
+      } else {
+        record.sort = key;
+        // Outcome columns lead with the wins; text columns read A-Z.
+        record.dir = ["result", "secondary", "totals", "status", "date"].includes(key)
+          ? "desc" : "asc";
+      }
+      renderRecord();
+      $(`.th-sort[data-rsort="${key}"]`)?.focus();
+      return;
+    }
     if (!ev.target.closest("#log-more")) return;
     record.limit += pageSize();
     renderRecord();

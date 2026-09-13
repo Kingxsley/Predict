@@ -14,13 +14,14 @@ directly (e.g. for integrating into a sportsbook's own trading tools):
     GET /api/afl/teams
     GET /api/afl/predict?home=Geelong&away=Carlton&venue=M.C.G.
 """
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Optional
@@ -39,6 +40,48 @@ app = FastAPI(title="Local Sports Prediction Engine", version="1.0")
 # stylesheet and one ES module, served from web/ and mounted at /assets.
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
+
+
+def _asset_fingerprints() -> dict[str, str]:
+    """Content hash per asset, computed once at import.
+
+    Without this the stylesheet and script are served from fixed URLs with an
+    ETag and no Cache-Control, which lets a browser apply heuristic freshness
+    and hold an old copy for days without ever revalidating. That is not
+    theoretical: a phone held a stylesheet from two deploys earlier while
+    getting fresh HTML, so the wordmark rendered as an unstyled link and
+    icons fell back to their intrinsic size — the site looked broken and
+    every design change appeared not to have shipped at all.
+    """
+    out = {}
+    for name in ("app.css", "app.js"):
+        path = WEB_DIR / name
+        try:
+            out[name] = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+        except OSError:
+            out[name] = "dev"
+    return out
+
+
+ASSET_HASHES = _asset_fingerprints()
+
+
+@app.middleware("http")
+async def _asset_cache_headers(request, call_next):
+    """Fingerprinted assets are immutable; bare ones must revalidate.
+
+    The bare-URL branch is what repairs a browser that is already holding a
+    stale copy. It matters less than it looks, because the fingerprinted URL
+    is a different URL and therefore misses the stale entry outright — a
+    stuck client is fixed by the next load of index.html, with no hard
+    refresh asked of anyone.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if request.query_params.get("v")
+            else "no-cache, must-revalidate")
+    return response
 
 
 @app.on_event("startup")
@@ -117,7 +160,21 @@ def afl_predict(
 
 @app.get("/")
 def dashboard():
-    return FileResponse(WEB_DIR / "index.html", media_type="text/html")
+    """The shell, with its asset URLs fingerprinted.
+
+    index.html itself must never be cached — it is the only thing that knows
+    which asset versions are current. The assets it points at are immutable
+    by construction, because a change to either produces a different URL, so
+    they can be cached for a year and a deploy is picked up on the next page
+    load rather than whenever a browser happens to revalidate.
+    """
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    for name, digest in ASSET_HASHES.items():
+        html = html.replace(f"/assets/{name}", f"/assets/{name}?v={digest}")
+    return Response(
+        html, media_type="text/html",
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/api/fixtures/live")
