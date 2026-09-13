@@ -33,6 +33,15 @@ BASE = "https://api.squiggle.com.au"
 # for a live read.
 SNAPSHOT_PATH = config.DATA_DIR / "afl" / "upcoming_snapshot.json"
 
+# The same argument applies to final scores, which the fixture snapshot did
+# not cover: grading also has to reach Squiggle, so from a blocked host the
+# AFL markets could never settle at all and every AFL prediction sat pending
+# for ever. Results are captured alongside the fixtures from a permitted
+# network. Unlike the fixture snapshot this one only grows — a finished
+# game's score never changes — so a stale copy is still correct for every
+# game it contains.
+RESULTS_SNAPSHOT_PATH = config.DATA_DIR / "afl" / "results_snapshot.json"
+
 # The competition has been eighteen clubs and a stable finals structure since
 # 2012; going back further mixes in eras with different team counts, a
 # different finals system and materially different scoring rates, which hurts
@@ -169,21 +178,71 @@ def write_snapshot(events: list[dict]) -> Path:
     return SNAPSHOT_PATH
 
 
-def fetch_results(year: int, max_wait: float = 0.0) -> http_budget.Fetched:
-    """Finished games for one season as {game_id: {home_score, away_score}},
-    for grading logged predictions in bulk."""
-    res = fetch_games(year, max_wait=max_wait)
-    if not res.ok:
-        return res
+def _results_from_games(games: list[dict]) -> dict:
     out = {}
-    for g in res.data:
+    for g in games:
         if not _is_complete(g) or g.get("id") is None:
             continue
         out[str(g["id"])] = {
             "home_score": int(g.get("hscore") or 0),
             "away_score": int(g.get("ascore") or 0),
         }
-    return http_budget.Fetched(out, res.status, res.age_seconds, res.error)
+    return out
+
+
+def fetch_results(year: int, max_wait: float = 0.0) -> http_budget.Fetched:
+    """Finished games for one season as {game_id: {home_score, away_score}},
+    for grading logged predictions in bulk.
+
+    Falls back to the committed results snapshot when the live call is
+    refused, which on a blocked host is always. Without this the AFL markets
+    never graded: `grade_pending` treats an unanswered provider as "we never
+    asked", so the entries were never even marked as attempted and could not
+    age out either."""
+    res = fetch_games(year, max_wait=max_wait)
+    if res.ok:
+        return http_budget.Fetched(_results_from_games(res.data), res.status,
+                                   res.age_seconds, res.error)
+    snap = load_results_snapshot(year)
+    return snap if snap is not None else res
+
+
+def load_results_snapshot(year: int) -> http_budget.Fetched | None:
+    """Committed final scores for one season. None when absent or empty."""
+    if not RESULTS_SNAPSHOT_PATH.exists():
+        return None
+    try:
+        blob = json.loads(RESULTS_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    results = (blob.get("years") or {}).get(str(year))
+    if not results:
+        return None
+    captured = blob.get("captured_at", "an earlier build")
+    return http_budget.Fetched(
+        results, "snapshot", 0.0,
+        f"Live feed unreachable from this host; grading against results captured {captured}.")
+
+
+def write_results_snapshot(by_year: dict[str, dict]) -> Path:
+    """Called by the ingest script from a network Squiggle permits. Merges
+    into whatever is already committed rather than replacing it, so a capture
+    run for one season never drops another season's scores."""
+    RESULTS_SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing = {}
+    if RESULTS_SNAPSHOT_PATH.exists():
+        try:
+            existing = (json.loads(RESULTS_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+                        .get("years") or {})
+        except (json.JSONDecodeError, OSError):
+            existing = {}
+    for year, results in by_year.items():
+        existing.setdefault(str(year), {}).update(results)
+    RESULTS_SNAPSHOT_PATH.write_text(json.dumps({
+        "captured_at": datetime.now(timezone.utc).date().isoformat(),
+        "years": existing,
+    }, indent=2), encoding="utf-8")
+    return RESULTS_SNAPSHOT_PATH
 
 
 def fetch_history(start_year: int = HISTORY_START_YEAR, end_year: int | None = None,

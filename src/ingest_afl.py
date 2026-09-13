@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -55,12 +56,20 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="start", type=int, default=afl_data.HISTORY_START_YEAR)
     ap.add_argument("--to", dest="end", type=int, default=None)
+    # Refreshing the committed snapshots is a routine chore — the fixture one
+    # goes stale every round — and does not need the whole training frame
+    # rebuilt from a decade of seasons to do it.
+    ap.add_argument("--snapshots-only", action="store_true",
+                    help="Refresh the committed fixture and results snapshots, "
+                         "skipping the training-frame rebuild.")
     args = ap.parse_args()
 
-    df = build(args.start, args.end)
-    out = config.AFL_PROCESSED
-    out.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(out, index=False)
+    df = None
+    if not args.snapshots_only:
+        df = build(args.start, args.end)
+        out = config.AFL_PROCESSED
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(out, index=False)
 
     # Capture the upcoming fixture too. Squiggle blocks datacenter IPs, so the
     # deployed instance cannot read this itself; committing what we fetch here
@@ -71,6 +80,25 @@ def main() -> None:
         print(f"Captured {len(upcoming.data)} upcoming fixtures to {snap}")
     else:
         print(f"No upcoming fixtures to snapshot ({upcoming.error or 'none scheduled'})")
+
+    # Final scores too, for the same reason. Grading has to reach Squiggle
+    # as well, and from a blocked host it never could, so the AFL markets
+    # sat pending for ever no matter how long they waited.
+    end_year = args.end or datetime.now(timezone.utc).year
+    by_year = {}
+    for year in range(max(args.start, end_year - 1), end_year + 1):
+        res = afl_data.fetch_results(year, max_wait=30)
+        if res.ok and res.data:
+            by_year[str(year)] = res.data
+    if by_year:
+        snap = afl_data.write_results_snapshot(by_year)
+        total = sum(len(v) for v in by_year.values())
+        print(f"Captured {total} final scores across {len(by_year)} season(s) to {snap}")
+    else:
+        print("No final scores to snapshot")
+
+    if df is None:
+        return
 
     seasons = df["season"].nunique()
     print(f"\nWrote {len(df):,} matches across {seasons} seasons to {out}")

@@ -964,6 +964,22 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
   .fx-detail__inner { padding: var(--s3) var(--s4) var(--s4); border-bottom: 0; }
 }
 
+/* Divider between the settled record and the fixtures still to come. */
+.rec-split > td {
+  padding: var(--s2) var(--s4);
+  background: var(--surface-2);
+  border-top: 2px solid var(--brand);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-2);
+}
+@media (max-width: 760px) {
+  .table-wrap tr.rec-split { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .table-wrap tr.rec-split > td { display: block; border-radius: var(--r); }
+  .table-wrap tr.rec-split > td::before { content: none; }
+}
+
 .sr-only {
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;

@@ -1061,16 +1061,33 @@ function fillRecordLeagues() {
   if (leagues.includes(keep)) sel.value = keep;
 }
 
+/** A prediction is settled once any of its markets has a real result. */
+const isSettled = (e) =>
+  Object.values(e.markets || {}).some((m) => "actual" in m);
+
 function recordRows() {
   if (!record.data) return [];
   const from = $("#log-from").value, to = $("#log-to").value, league = $("#log-league").value;
-  return record.data.entries.filter((e) => {
+  const rows = record.data.entries.filter((e) => {
     if (record.sport !== "all" && e.sport !== record.sport) return false;
     if (league && e.league !== league) return false;
     if (!e.date) return true;
     if (from && e.date < from) return false;
     if (to && e.date > to) return false;
     return true;
+  });
+
+  // Settled first. The server sorts by date descending, which put every
+  // unplayed fixture above every result — 142 of 211 rows at one point, so
+  // the whole first page read "Pending" and the track record this page
+  // exists to show was two clicks below the fold. Within the settled block
+  // the newest result leads; pending fixtures run in kick-off order, so the
+  // next match to be graded is the first one under the divider.
+  return rows.sort((a, b) => {
+    const sa = isSettled(a), sb = isSettled(b);
+    if (sa !== sb) return sa ? -1 : 1;
+    const da = a.date || "", db = b.date || "";
+    return sa ? db.localeCompare(da) : da.localeCompare(db);
   });
 }
 
@@ -1155,9 +1172,17 @@ function renderRecord() {
         <th scope="col">Result</th><th scope="col">Secondary</th>
         <th scope="col">Totals</th><th scope="col">Score</th><th scope="col">Status</th>
       </tr></thead>
-      <tbody>${page.map((e) => {
+      <tbody>${page.map((e, i) => {
         const afl = e.sport === "afl";
-        return `<tr>
+        // One divider where results stop and unplayed fixtures begin, so the
+        // switch from record to schedule is visible rather than something
+        // you infer from the Status column changing.
+        const divider = i > 0 && isSettled(page[i - 1]) && !isSettled(e)
+          ? `<tr class="rec-split"><td colspan="8">
+               Not yet played — ${rows.filter((x) => !isSettled(x)).length} awaiting a result
+             </td></tr>`
+          : "";
+        return `${divider}<tr>
           ${tdLead(`${esc(e.home)} v ${esc(e.away)}`)}
           ${td("Date", esc(e.date || ""), "num")}
           ${td("Competition", esc(e.league))}
@@ -1188,8 +1213,7 @@ function renderRecord() {
 
 function statusBadge(e) {
   if (!e.graded) return `<span class="badge badge--mute">Pending</span>`;
-  const settled = Object.values(e.markets || {}).some((m) => "actual" in m);
-  return settled
+  return isSettled(e)
     ? `<span class="badge badge--pos">${icon("check")}Settled</span>`
     : `<span class="badge badge--warn">${icon("alert")}Unresolved</span>`;
 }
