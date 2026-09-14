@@ -1213,7 +1213,7 @@ function renderRecord() {
           `<a class="btn btn--secondary" href="#board">Open the board</a>`);
   } else {
     const page = rows.slice(0, record.limit);
-    html += `<div class="table-wrap"><table>
+    html += `<div class="table-wrap"><table class="rec-table">
       <thead><tr>${REC_COLUMNS.map((c) => {
         if (!c.key) return `<th scope="col">${esc(c.label)}</th>`;
         const on = record.sort === c.key;
@@ -1234,16 +1234,17 @@ function renderRecord() {
                Not yet played — ${rows.filter((x) => !isSettled(x)).length} awaiting a result
              </td></tr>`
           : "";
-        return `${divider}<tr>
-          ${tdLead(`${esc(e.home)} v ${esc(e.away)}`)}
-          ${td("Date", esc(e.date || ""), "num nowrap")}
-          ${td("Competition", esc(e.league))}
-          ${td("Result", marketCell(e, afl ? "h2h" : "1x2"))}
-          ${td("Secondary", afl ? `<span style="color:var(--ink-3)">–</span>` : marketCell(e, "btts"))}
-          ${td("Totals", marketCell(e, afl ? "total_points" : "over_under_2_5"))}
+        return `${divider}<tr class="rec">
+          <td data-lead class="r-fix">${esc(shortTeam(e.home))} <span class="r-v">v</span> ${esc(shortTeam(e.away))}</td>
+          ${td("Date", esc(e.date || ""), "num nowrap r-date")}
+          ${td("Competition", esc(shortLeague(e.league)), "r-comp")}
+          ${td("Result", marketCell(e, afl ? "h2h" : "1x2"), "r-res")}
+          ${td("Secondary", afl ? `<span class="dash">–</span>` : marketCell(e, "btts"), "r-sec")}
+          ${td("Totals", marketCell(e, afl ? "total_points" : "over_under_2_5"), "r-tot")}
           ${td("Score", e.actual_home_score != null
-              ? `${esc(e.actual_home_score)}–${esc(e.actual_away_score)}` : "–", "num")}
-          ${td("Status", statusBadge(e))}
+              ? `<b class="r-score">${esc(e.actual_home_score)}–${esc(e.actual_away_score)}</b>`
+              : `<span class="dash">–</span>`, "num r-sc")}
+          ${td("Status", statusBadge(e), "r-st")}
         </tr>`;
       }).join("")}</tbody>
       <caption>A fixture is settled once its real final score can be fetched. "Unresolved" means no

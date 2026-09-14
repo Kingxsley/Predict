@@ -995,6 +995,94 @@ caption { caption-side: bottom; padding: var(--s3) var(--s4); font-size: var(--t
 .res--hit  { background: var(--pos-wash); color: var(--pos); }
 .res--miss { background: var(--neg-wash); color: var(--neg); }
 
+.r-score { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 800; }
+.r-v { color: var(--ink-3); font-weight: 400; font-size: var(--text-xs); }
+
+/* ---- Track record on a phone -------------------------------------------
+   The shared stacking gave each entry seven labelled lines — Date,
+   Competition, Result, Secondary, Totals, Score, Status — roughly 380px per
+   fixture and more label than data. Three lines carry the same information:
+   the fixture with its score, a meta line with the verdict, and the three
+   market calls side by side, where the tick and the pick already say what
+   each one is without a label in front of it. */
+@media (max-width: 760px) {
+  /* Seven metric tiles stacked two-up ran to roughly 700px before a single
+     result was visible. As a snapping strip they cost one tile's height and
+     stay swipeable, which is how a phone expects to read a row of figures. */
+  .metrics {
+    display: flex; grid-template-columns: none;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    gap: var(--s2); padding-bottom: var(--s2);
+    border: 0; background: transparent;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .metrics::-webkit-scrollbar { display: none; }
+  .metric {
+    flex: 0 0 60%; scroll-snap-align: start;
+    border: 1px solid var(--border); border-radius: var(--r-lg);
+  }
+
+  .rec-table tbody tr.rec {
+    display: grid; gap: var(--s2);
+    /* Three equal tracks, so the market chips on the bottom row are the same
+       width. With auto/1fr/auto they sized to their own content and
+       overflowed into each other. */
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas:
+      "fix  fix  score"
+      "date comp status"
+      "res  sec  tot";
+    align-items: center;
+    padding: var(--s3) var(--s4);
+  }
+  .rec-table tbody tr.rec > td {
+    display: block; width: auto; min-width: 0;
+    padding: 0; border-bottom: 0; text-align: left;
+  }
+  /* Scoped to the three meta cells only. A blanket reset here outranked the
+     label rules below and silently suppressed every chip caption. */
+  .rec-table tbody tr.rec > td.r-date::before,
+  .rec-table tbody tr.rec > td.r-comp::before,
+  .rec-table tbody tr.rec > td.r-sc::before,
+  .rec-table tbody tr.rec > td.r-st::before { content: none; }
+
+  .rec-table .r-fix  { grid-area: fix; font-weight: 650; font-size: var(--text-md); }
+  .rec-table .r-sc   { grid-area: score; text-align: right; }
+  .rec-table .r-date { grid-area: date; font-size: var(--text-xs); color: var(--ink-3); }
+  .rec-table .r-comp { grid-area: comp; font-size: var(--text-xs); color: var(--ink-3);
+                       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rec-table .r-st   { grid-area: status; text-align: right; }
+
+  /* The three calls as equal chips, each captioned so "YES" and "Over 2.5"
+     are not left ambiguous once the table header is gone. */
+  .rec-table .r-res { grid-area: res; }
+  .rec-table .r-sec { grid-area: sec; }
+  .rec-table .r-tot { grid-area: tot; }
+  .rec-table tbody tr.rec > td.r-res,
+  .rec-table tbody tr.rec > td.r-sec,
+  .rec-table tbody tr.rec > td.r-tot {
+    align-self: stretch;
+    padding: var(--s2); border-radius: var(--r-sm);
+    background: var(--surface-2); font-size: var(--text-xs);
+  }
+  .rec-table tbody tr.rec > td.r-res::before,
+  .rec-table tbody tr.rec > td.r-sec::before,
+  .rec-table tbody tr.rec > td.r-tot::before {
+    content: attr(data-label);
+    display: block; margin-bottom: 3px;
+    font-family: var(--font-display);
+    font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  /* Inside a narrow chip the pick has to be allowed to wrap. */
+  .rec-table .mkt { display: block; }
+  .rec-table .mkt__call { white-space: normal; }
+  .rec-table .mkt__pick { font-weight: 600; }
+  .rec-table .mkt__p { margin-left: 4px; }
+  .rec-table .res { vertical-align: -3px; }
+}
+
 /* Divider between the settled record and the fixtures still to come. */
 .rec-split > td {
   padding: var(--s2) var(--s4);
