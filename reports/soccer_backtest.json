@@ -6,20 +6,20 @@
     "n_test_holdout": 200,
     "blend_alpha": 0.55,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.13633264986151167,
-    "dixon_coles_rho": -0.00357818006136713,
+    "dixon_coles_home_adv": 0.13635617395718788,
+    "dixon_coles_rho": -0.0035872630905260027,
     "brier": {
-      "dixon_coles_only": 0.6521608838867516,
+      "dixon_coles_only": 0.6521657818389167,
       "elo_only": 0.6453595459161116,
-      "blended": 0.6381929422130743,
-      "blended_calibrated": 0.6381929422130743,
+      "blended": 0.6381951816514966,
+      "blended_calibrated": 0.6381951816514966,
       "market": 0.632820813528198
     },
     "log_loss": {
-      "dixon_coles_only": 1.0748621290898324,
+      "dixon_coles_only": 1.0748687646241266,
       "elo_only": 1.067212793783373,
-      "blended": 1.0559404440359768,
-      "blended_calibrated": 1.0559404440359768,
+      "blended": 1.0559435671997015,
+      "blended_calibrated": 1.0559435671997015,
       "market": 1.049216232826555
     },
     "value_betting_sim": {
@@ -53,20 +53,20 @@
     "n_test_holdout": 300,
     "blend_alpha": 0.65,
     "calibration_applied": true,
-    "dixon_coles_home_adv": 0.2715834483754814,
-    "dixon_coles_rho": 0.014817589567774708,
+    "dixon_coles_home_adv": 0.27157444952959087,
+    "dixon_coles_rho": 0.014810151166397102,
     "brier": {
-      "dixon_coles_only": 0.6718640146488309,
+      "dixon_coles_only": 0.6718591780154445,
       "elo_only": 0.6588883777655684,
-      "blended": 0.6566494794220591,
-      "blended_calibrated": 0.6628823979297768,
+      "blended": 0.6566463970922823,
+      "blended_calibrated": 0.6628797500388686,
       "market": 0.625964012823233
     },
     "log_loss": {
-      "dixon_coles_only": 1.1062018256842263,
+      "dixon_coles_only": 1.1061954332233859,
       "elo_only": 1.089350375653457,
-      "blended": 1.0859472611320788,
-      "blended_calibrated": 1.0944681892919363,
+      "blended": 1.0859428252659513,
+      "blended_calibrated": 1.094464362469472,
       "market": 1.0385562448449015
     },
     "value_betting_sim": {
@@ -100,20 +100,20 @@
     "n_test_holdout": 206,
     "blend_alpha": 0.8,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.24029727874786577,
-    "dixon_coles_rho": 0.0180623426543111,
+    "dixon_coles_home_adv": 0.24028050009384536,
+    "dixon_coles_rho": 0.018056577834613934,
     "brier": {
-      "dixon_coles_only": 0.5926918992921328,
-      "elo_only": 0.6052311508699446,
-      "blended": 0.5903396068498766,
-      "blended_calibrated": 0.5903396068498766,
+      "dixon_coles_only": 0.5926868122649237,
+      "elo_only": 0.6052311508699445,
+      "blended": 0.5903358308458361,
+      "blended_calibrated": 0.5903358308458361,
       "market": 0.5752448955775424
     },
     "log_loss": {
-      "dixon_coles_only": 0.9975200794875894,
+      "dixon_coles_only": 0.9975146509394208,
       "elo_only": 1.0167647632135275,
-      "blended": 0.9944150998631511,
-      "blended_calibrated": 0.9944150998631511,
+      "blended": 0.9944110005882874,
+      "blended_calibrated": 0.9944110005882874,
       "market": 0.9709549450699456
     },
     "value_betting_sim": {
@@ -147,20 +147,20 @@
     "n_test_holdout": 253,
     "blend_alpha": 0.7000000000000001,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.3322049160375968,
-    "dixon_coles_rho": -0.025921906385299644,
+    "dixon_coles_home_adv": 0.3321648376727629,
+    "dixon_coles_rho": -0.02590403763141573,
     "brier": {
-      "dixon_coles_only": 0.6337159781012889,
+      "dixon_coles_only": 0.6337280654469153,
       "elo_only": 0.6534739672145748,
-      "blended": 0.6315660378641088,
-      "blended_calibrated": 0.6315660378641088,
+      "blended": 0.631572925769758,
+      "blended_calibrated": 0.631572925769758,
       "market": 0.5916777448449292
     },
     "log_loss": {
-      "dixon_coles_only": 1.0543129619959262,
+      "dixon_coles_only": 1.0543337129066017,
       "elo_only": 1.0770209284506642,
-      "blended": 1.0516167000204484,
-      "blended_calibrated": 1.0516167000204484,
+      "blended": 1.0516292069856998,
+      "blended_calibrated": 1.0516292069856998,
       "market": 0.9911999614389854
     },
     "value_betting_sim": {
@@ -179,11 +179,11 @@
         "win_rate": 0.20388349514563106
       },
       "away": {
-        "n_bets": 75,
-        "staked": 75.0,
+        "n_bets": 76,
+        "staked": 76.0,
         "returned": 62.81,
-        "roi": -0.1625333333333333,
-        "win_rate": 0.2
+        "roi": -0.17355263157894735,
+        "win_rate": 0.19736842105263158
       }
     }
   },
@@ -194,20 +194,20 @@
     "n_test_holdout": 200,
     "blend_alpha": 0.65,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.1345508752098433,
-    "dixon_coles_rho": -0.07321569806707254,
+    "dixon_coles_home_adv": 0.13457087275202503,
+    "dixon_coles_rho": -0.07321143277637294,
     "brier": {
-      "dixon_coles_only": 0.5823602923741785,
+      "dixon_coles_only": 0.582364488021719,
       "elo_only": 0.6078053793806844,
-      "blended": 0.5851591345405329,
-      "blended_calibrated": 0.5851591345405329,
+      "blended": 0.5851631779955117,
+      "blended_calibrated": 0.5851631779955117,
       "market": 0.5613327945849284
     },
     "log_loss": {
-      "dixon_coles_only": 0.977819668175826,
+      "dixon_coles_only": 0.9778257101332215,
       "elo_only": 1.0207083255612475,
-      "blended": 0.9846596213657969,
-      "blended_calibrated": 0.9846596213657969,
+      "blended": 0.9846647157236598,
+      "blended_calibrated": 0.9846647157236598,
       "market": 0.953524239169291
     },
     "value_betting_sim": {
@@ -241,20 +241,20 @@
     "n_test_holdout": 200,
     "blend_alpha": 0.55,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.186066981252992,
-    "dixon_coles_rho": -0.11328728083721529,
+    "dixon_coles_home_adv": 0.1860230809727527,
+    "dixon_coles_rho": -0.11327373843880502,
     "brier": {
-      "dixon_coles_only": 0.6411078195963639,
+      "dixon_coles_only": 0.6410963558425117,
       "elo_only": 0.632333176866875,
-      "blended": 0.6302496737110819,
-      "blended_calibrated": 0.6302496737110819,
+      "blended": 0.6302484384753206,
+      "blended_calibrated": 0.6302484384753206,
       "market": 0.5972311675093229
     },
     "log_loss": {
-      "dixon_coles_only": 1.061348197752642,
+      "dixon_coles_only": 1.0613321343715318,
       "elo_only": 1.0470882526583047,
-      "blended": 1.0461357787518,
-      "blended_calibrated": 1.0461357787518,
+      "blended": 1.0461334484547602,
+      "blended_calibrated": 1.0461334484547602,
       "market": 1.0021057314743307
     },
     "value_betting_sim": {
@@ -288,20 +288,20 @@
     "n_test_holdout": 158,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.1711120058625267,
-    "dixon_coles_rho": -0.13069270406892486,
+    "dixon_coles_home_adv": 0.17111099276720915,
+    "dixon_coles_rho": -0.13067268950252126,
     "brier": {
-      "dixon_coles_only": 0.5876606750281883,
+      "dixon_coles_only": 0.5876486961872192,
       "elo_only": 0.60786305388916,
-      "blended": 0.5876606750281883,
-      "blended_calibrated": 0.5876606750281883,
+      "blended": 0.587648696187219,
+      "blended_calibrated": 0.587648696187219,
       "market": 0.5781892163486677
     },
     "log_loss": {
-      "dixon_coles_only": 0.988129671617515,
+      "dixon_coles_only": 0.9881138818155231,
       "elo_only": 1.0152557931620614,
-      "blended": 0.988129671617515,
-      "blended_calibrated": 0.988129671617515,
+      "blended": 0.9881138818155231,
+      "blended_calibrated": 0.9881138818155231,
       "market": 0.9748202136964558
     },
     "value_betting_sim": {
@@ -335,20 +335,20 @@
     "n_test_holdout": 167,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.19471676217950845,
-    "dixon_coles_rho": -0.08888548763665251,
+    "dixon_coles_home_adv": 0.19475725954164297,
+    "dixon_coles_rho": -0.08888599414867665,
     "brier": {
-      "dixon_coles_only": 0.6659069074842424,
+      "dixon_coles_only": 0.6659232952998899,
       "elo_only": 0.6727132802273047,
-      "blended": 0.6659069074842424,
-      "blended_calibrated": 0.6659069074842424,
+      "blended": 0.6659232952998899,
+      "blended_calibrated": 0.6659232952998899,
       "market": 0.629682093938994
     },
     "log_loss": {
-      "dixon_coles_only": 1.099980792453037,
+      "dixon_coles_only": 1.100005802052456,
       "elo_only": 1.109570562810493,
-      "blended": 1.099980792453037,
-      "blended_calibrated": 1.099980792453037,
+      "blended": 1.100005802052456,
+      "blended_calibrated": 1.100005802052456,
       "market": 1.0457085618026842
     },
     "value_betting_sim": {
@@ -382,20 +382,20 @@
     "n_test_holdout": 163,
     "blend_alpha": 0.9500000000000001,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.15389397962720275,
-    "dixon_coles_rho": -0.07023255264930772,
+    "dixon_coles_home_adv": 0.1539054459544586,
+    "dixon_coles_rho": -0.07023932197783726,
     "brier": {
-      "dixon_coles_only": 0.6230751782787827,
+      "dixon_coles_only": 0.623074315717143,
       "elo_only": 0.6268281681712891,
-      "blended": 0.6215739327518877,
-      "blended_calibrated": 0.6215739327518877,
+      "blended": 0.6215732060597047,
+      "blended_calibrated": 0.6215732060597047,
       "market": 0.6108491282362899
     },
     "log_loss": {
-      "dixon_coles_only": 1.0314586526253529,
+      "dixon_coles_only": 1.0314569851352289,
       "elo_only": 1.0381024049869207,
-      "blended": 1.02936592284838,
-      "blended_calibrated": 1.02936592284838,
+      "blended": 1.0293644870203238,
+      "blended_calibrated": 1.0293644870203238,
       "market": 1.0142884959066434
     },
     "value_betting_sim": {
@@ -429,20 +429,20 @@
     "n_test_holdout": 171,
     "blend_alpha": 0.7000000000000001,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.25594946229913035,
-    "dixon_coles_rho": 0.02291992300189054,
+    "dixon_coles_home_adv": 0.25593353846040945,
+    "dixon_coles_rho": 0.023035719306226807,
     "brier": {
-      "dixon_coles_only": 0.6734404146638975,
+      "dixon_coles_only": 0.673429954805538,
       "elo_only": 0.6462667145158484,
-      "blended": 0.6576750007120878,
-      "blended_calibrated": 0.6576750007120878,
+      "blended": 0.6576674108756938,
+      "blended_calibrated": 0.6576674108756938,
       "market": 0.6471146245524468
     },
     "log_loss": {
-      "dixon_coles_only": 1.107441345378961,
+      "dixon_coles_only": 1.1074332553658885,
       "elo_only": 1.0650229082798996,
-      "blended": 1.0843770476007013,
-      "blended_calibrated": 1.0843770476007013,
+      "blended": 1.0843695519158019,
+      "blended_calibrated": 1.0843695519158019,
       "market": 1.0673267214133928
     },
     "value_betting_sim": {
@@ -476,20 +476,20 @@
     "n_test_holdout": 170,
     "blend_alpha": 0.8,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.23958933665801277,
-    "dixon_coles_rho": -0.08347263226616039,
+    "dixon_coles_home_adv": 0.23959509431620726,
+    "dixon_coles_rho": -0.08347408074405827,
     "brier": {
-      "dixon_coles_only": 0.598141803430957,
+      "dixon_coles_only": 0.5981518860424958,
       "elo_only": 0.6118628826133398,
-      "blended": 0.593548317620457,
-      "blended_calibrated": 0.593548317620457,
+      "blended": 0.5935570767611977,
+      "blended_calibrated": 0.5935570767611977,
       "market": 0.5831967673402597
     },
     "log_loss": {
-      "dixon_coles_only": 1.0018241255564115,
+      "dixon_coles_only": 1.00183149601433,
       "elo_only": 1.0206658305571794,
-      "blended": 0.9939163772952367,
-      "blended_calibrated": 0.9939163772952367,
+      "blended": 0.9939255769569225,
+      "blended_calibrated": 0.9939255769569225,
       "market": 0.9828096942253884
     },
     "value_betting_sim": {
@@ -523,20 +523,20 @@
     "n_test_holdout": 170,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.19686274207057447,
-    "dixon_coles_rho": 0.035042966269806415,
+    "dixon_coles_home_adv": 0.19687511307890612,
+    "dixon_coles_rho": 0.035040371084641905,
     "brier": {
-      "dixon_coles_only": 0.5764859100759206,
+      "dixon_coles_only": 0.5764823697275855,
       "elo_only": 0.5768821435617747,
-      "blended": 0.5764859100759206,
-      "blended_calibrated": 0.5764859100759206,
+      "blended": 0.5764823697275855,
+      "blended_calibrated": 0.5764823697275855,
       "market": 0.5644811501924303
     },
     "log_loss": {
-      "dixon_coles_only": 0.9669743802329219,
+      "dixon_coles_only": 0.9669671441478711,
       "elo_only": 0.9683802912754856,
-      "blended": 0.9669743802329219,
-      "blended_calibrated": 0.9669743802329219,
+      "blended": 0.9669671441478713,
+      "blended_calibrated": 0.9669671441478713,
       "market": 0.9469810592792549
     },
     "value_betting_sim": {
@@ -570,20 +570,20 @@
     "n_test_holdout": 174,
     "blend_alpha": 0.45,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.24742704087946513,
-    "dixon_coles_rho": -0.07394407630868231,
+    "dixon_coles_home_adv": 0.24749672775023576,
+    "dixon_coles_rho": -0.07397372002168598,
     "brier": {
-      "dixon_coles_only": 0.611549348655761,
+      "dixon_coles_only": 0.611553357425274,
       "elo_only": 0.6338163665578278,
-      "blended": 0.6121495624930893,
-      "blended_calibrated": 0.6121495624930893,
+      "blended": 0.6121519440544076,
+      "blended_calibrated": 0.6121519440544076,
       "market": 0.5891660887423044
     },
     "log_loss": {
-      "dixon_coles_only": 1.0186236936408781,
+      "dixon_coles_only": 1.0186294415881694,
       "elo_only": 1.0493254458347465,
-      "blended": 1.0209784830001956,
-      "blended_calibrated": 1.0209784830001956,
+      "blended": 1.0209822701453672,
+      "blended_calibrated": 1.0209822701453672,
       "market": 0.9864684061923514
     },
     "value_betting_sim": {
@@ -617,20 +617,20 @@
     "n_test_holdout": 127,
     "blend_alpha": 0.30000000000000004,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.26494481710271867,
-    "dixon_coles_rho": 0.04084148208901032,
+    "dixon_coles_home_adv": 0.2649360492965853,
+    "dixon_coles_rho": 0.04081762941768448,
     "brier": {
-      "dixon_coles_only": 0.5532297183924936,
+      "dixon_coles_only": 0.5532283710258982,
       "elo_only": 0.5937136476623041,
-      "blended": 0.5707441693107146,
-      "blended_calibrated": 0.5707441693107146,
+      "blended": 0.5707445673942148,
+      "blended_calibrated": 0.5707445673942148,
       "market": 0.5507069706609015
     },
     "log_loss": {
-      "dixon_coles_only": 0.9398301922754273,
+      "dixon_coles_only": 0.9398277459356039,
       "elo_only": 0.9977304055622557,
-      "blended": 0.9661103614278761,
-      "blended_calibrated": 0.9661103614278761,
+      "blended": 0.9661107979526325,
+      "blended_calibrated": 0.9661107979526325,
       "market": 0.9362914769366237
     },
     "value_betting_sim": {
@@ -664,20 +664,20 @@
     "n_test_holdout": 170,
     "blend_alpha": 0.25,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.25739394755809686,
-    "dixon_coles_rho": -0.07205302705460773,
+    "dixon_coles_home_adv": 0.25738486427899204,
+    "dixon_coles_rho": -0.07203258606371603,
     "brier": {
-      "dixon_coles_only": 0.5988817209431841,
+      "dixon_coles_only": 0.5988828493378919,
       "elo_only": 0.6348521584218695,
-      "blended": 0.620176358610811,
-      "blended_calibrated": 0.620176358610811,
+      "blended": 0.620175863344171,
+      "blended_calibrated": 0.620175863344171,
       "market": 0.5827929942555585
     },
     "log_loss": {
-      "dixon_coles_only": 1.002068299097838,
+      "dixon_coles_only": 1.0020702339364238,
       "elo_only": 1.0481794355925642,
-      "blended": 1.0285619231822514,
-      "blended_calibrated": 1.0285619231822514,
+      "blended": 1.0285613858093092,
+      "blended_calibrated": 1.0285613858093092,
       "market": 0.9738721359636633
     },
     "value_betting_sim": {
@@ -711,20 +711,20 @@
     "n_test_holdout": 125,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.16783853959605904,
-    "dixon_coles_rho": 0.018344585763150706,
+    "dixon_coles_home_adv": 0.16784160440979157,
+    "dixon_coles_rho": 0.018345341826082606,
     "brier": {
-      "dixon_coles_only": 0.6107939644792856,
+      "dixon_coles_only": 0.6107951285912935,
       "elo_only": 0.615731980032027,
-      "blended": 0.6107939644792856,
-      "blended_calibrated": 0.6107939644792856,
+      "blended": 0.6107951285912935,
+      "blended_calibrated": 0.6107951285912935,
       "market": 0.608936487770838
     },
     "log_loss": {
-      "dixon_coles_only": 1.0173598485902111,
+      "dixon_coles_only": 1.017361992813049,
       "elo_only": 1.0231900195929187,
-      "blended": 1.0173598485902111,
-      "blended_calibrated": 1.0173598485902111,
+      "blended": 1.017361992813049,
+      "blended_calibrated": 1.017361992813049,
       "market": 1.0072346007069948
     },
     "value_betting_sim": {
@@ -758,20 +758,20 @@
     "n_test_holdout": 303,
     "blend_alpha": 0.45,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.41502615293364903,
-    "dixon_coles_rho": -0.07047218559808137,
+    "dixon_coles_home_adv": 0.4150255694126329,
+    "dixon_coles_rho": -0.07047204667559054,
     "brier": {
-      "dixon_coles_only": 0.6630022603667461,
+      "dixon_coles_only": 0.6630022085239492,
       "elo_only": 0.6561811504440445,
-      "blended": 0.645604646962909,
-      "blended_calibrated": 0.645604646962909,
+      "blended": 0.6456046249063312,
+      "blended_calibrated": 0.6456046249063312,
       "market": 0.6148353446568858
     },
     "log_loss": {
-      "dixon_coles_only": 1.0923687086480407,
+      "dixon_coles_only": 1.0923686366179783,
       "elo_only": 1.083793023369994,
-      "blended": 1.0694992463774846,
-      "blended_calibrated": 1.0694992463774846,
+      "blended": 1.069499213363271,
+      "blended_calibrated": 1.069499213363271,
       "market": 1.0242869832593704
     },
     "value_betting_sim": {
@@ -805,20 +805,20 @@
     "n_test_holdout": 211,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.3513510493545839,
-    "dixon_coles_rho": -0.015872997540788282,
+    "dixon_coles_home_adv": 0.351360487396552,
+    "dixon_coles_rho": -0.015855799414357302,
     "brier": {
-      "dixon_coles_only": 0.612311014185367,
+      "dixon_coles_only": 0.6122971429464632,
       "elo_only": 0.6367115699944369,
-      "blended": 0.612311014185367,
-      "blended_calibrated": 0.612311014185367,
+      "blended": 0.6122971429464632,
+      "blended_calibrated": 0.6122971429464632,
       "market": 0.5844690123144386
     },
     "log_loss": {
-      "dixon_coles_only": 1.0270663001276805,
+      "dixon_coles_only": 1.0270321959243898,
       "elo_only": 1.0578100133607349,
-      "blended": 1.0270663001276805,
-      "blended_calibrated": 1.0270663001276805,
+      "blended": 1.0270321959243898,
+      "blended_calibrated": 1.0270321959243898,
       "market": 0.9853402318085835
     },
     "value_betting_sim": {
@@ -852,20 +852,20 @@
     "n_test_holdout": 304,
     "blend_alpha": 0.30000000000000004,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.25546029550384647,
-    "dixon_coles_rho": -0.05233055328931999,
+    "dixon_coles_home_adv": 0.2554396470618254,
+    "dixon_coles_rho": -0.05232868602247903,
     "brier": {
-      "dixon_coles_only": 0.6353029275811504,
+      "dixon_coles_only": 0.6353066916620286,
       "elo_only": 0.6506114231468968,
-      "blended": 0.6410088555936281,
-      "blended_calibrated": 0.6410088555936281,
+      "blended": 0.6410095073988892,
+      "blended_calibrated": 0.6410095073988892,
       "market": 0.611944672961035
     },
     "log_loss": {
-      "dixon_coles_only": 1.051325485986187,
+      "dixon_coles_only": 1.0513307317982061,
       "elo_only": 1.0730609446115917,
-      "blended": 1.059288944906154,
-      "blended_calibrated": 1.059288944906154,
+      "blended": 1.0592899209516944,
+      "blended_calibrated": 1.0592899209516944,
       "market": 1.0200468716133009
     },
     "value_betting_sim": {
@@ -899,20 +899,20 @@
     "n_test_holdout": 183,
     "blend_alpha": 1.0,
     "calibration_applied": false,
-    "dixon_coles_home_adv": 0.21843574411453878,
-    "dixon_coles_rho": -0.07626812513034718,
+    "dixon_coles_home_adv": 0.21842913378563197,
+    "dixon_coles_rho": -0.07627796877659537,
     "brier": {
-      "dixon_coles_only": 0.6209693335318753,
+      "dixon_coles_only": 0.6209659113289345,
       "elo_only": 0.6217759466846875,
-      "blended": 0.6209693335318753,
-      "blended_calibrated": 0.6209693335318753,
+      "blended": 0.6209659113289344,
+      "blended_calibrated": 0.6209659113289344,
       "market": 0.5749176567731408
     },
     "log_loss": {
-      "dixon_coles_only": 1.0365823144982462,
+      "dixon_coles_only": 1.0365770615415042,
       "elo_only": 1.0384165744407416,
-      "blended": 1.036582314498246,
-      "blended_calibrated": 1.036582314498246,
+      "blended": 1.036577061541504,
+      "blended_calibrated": 1.036577061541504,
       "market": 0.9700748576022736
     },
     "value_betting_sim": {

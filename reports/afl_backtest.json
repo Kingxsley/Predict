@@ -1,6 +1,6 @@
 {
   "n_train": 2447,
-  "n_test_holdout": 645,
+  "n_test_holdout": 647,
   "train_seasons": [
     2012,
     2013,
@@ -23,34 +23,34 @@
   "n_draws_in_holdout": 7,
   "win_probability": {
     "elo_only": {
-      "brier": 0.19851314452785862,
-      "log_loss": 0.5733882974401292
+      "brier": 0.1987043035018973,
+      "log_loss": 0.5738242462429468
     },
     "margin_model": {
-      "brier": 0.1957695689413794,
-      "log_loss": 0.5721385821356355
+      "brier": 0.19611509653772918,
+      "log_loss": 0.57312873113673
     },
     "blended": {
-      "brier": 0.19430431491105446,
-      "log_loss": 0.5665158429598582
+      "brier": 0.19455308861900816,
+      "log_loss": 0.5671721992715595
     }
   },
-  "margin_mae": 27.14218802118833,
-  "total_mae": 22.62944898974988,
-  "margin_residual_std": 30.38041816935584,
+  "margin_mae": 27.18500994970098,
+  "total_mae": 22.805463858697294,
+  "margin_residual_std": 30.32498809204213,
   "total_line": 169.5,
   "total_over_under": {
-    "brier": 0.2464287110010532,
-    "accuracy": 0.5813953488372093,
-    "actual_over_rate": 0.524031007751938
+    "brier": 0.24675448309703146,
+    "accuracy": 0.5873261205564142,
+    "actual_over_rate": 0.5255023183925811
   },
   "baselines": {
-    "always_home_accuracy": 0.5768025078369906,
-    "home_win_rate_holdout": 0.5768025078369906,
-    "mean_margin_mae": 31.744213290756278,
-    "mean_total_mae": 23.418427880366085
+    "always_home_accuracy": 0.578125,
+    "home_win_rate_holdout": 0.578125,
+    "mean_margin_mae": 31.730114596367248,
+    "mean_total_mae": 23.53799214127762
   },
-  "model_accuracy": 0.6896551724137931,
-  "trained_as_of": "2026-09-05",
+  "model_accuracy": 0.6921875,
+  "trained_as_of": "2026-09-12",
   "teams": 18
 }
