@@ -94,6 +94,9 @@ def _startup() -> None:
         if moved:
             print(f"[store] imported {moved} entries from the on-disk log")
     print(f"[store] prediction log backend: {backend}")
+    # Build the board behind the startup so the first visitor after a deploy
+    # is not the one who pays for a cold cache.
+    live_fixtures.warm_cache()
 
 
 @app.get("/api/soccer/leagues")

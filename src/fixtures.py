@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import time
 from datetime import date, datetime
 from pathlib import Path
@@ -65,6 +66,10 @@ THESPORTSDB_LEAGUE_IDS = {
 }
 
 _cache = {"ts": 0.0, "data": None, "ttl": FIXTURE_CACHE_TTL_SECONDS}
+# One rebuild at a time, and a flag so a request can tell whether a refresh
+# is already in flight without blocking to find out.
+_rebuild_lock = threading.Lock()
+_rebuilding = False
 
 
 def _normalize(name: str) -> str:
@@ -239,6 +244,37 @@ def _coverage(code: str, name: str, state: str, count: int = 0,
             **_model_freshness(code)}
 
 
+def _start_background_rebuild() -> bool:
+    """Kicks off one rebuild behind the response. Returns False if one is
+    already running, so a burst of visitors produces a single refresh rather
+    than one expensive rebuild each."""
+    global _rebuilding
+    with _rebuild_lock:
+        if _rebuilding:
+            return False
+        _rebuilding = True
+
+    def run():
+        global _rebuilding
+        try:
+            get_live_fixtures(force_refresh=True)
+        except Exception as e:  # never let a refresh failure kill the thread
+            print(f"[fixtures] background rebuild failed: {type(e).__name__}: {e}")
+        finally:
+            with _rebuild_lock:
+                _rebuilding = False
+
+    threading.Thread(target=run, name="board-rebuild", daemon=True).start()
+    return True
+
+
+def warm_cache() -> None:
+    """Builds the board once at startup so the first visitor never pays for
+    a cold cache. Runs in the background: the server must start serving
+    immediately, and the healthcheck must not wait on a provider."""
+    _start_background_rebuild()
+
+
 def get_live_fixtures(force_refresh: bool = False) -> dict:
     """Returns fixtures grouped by league plus a per-league coverage report.
 
@@ -251,8 +287,20 @@ def get_live_fixtures(force_refresh: bool = False) -> dict:
     is flagged stale.
     """
     now = time.time()
-    if not force_refresh and _cache["data"] is not None and \
-            (now - _cache["ts"]) < _cache.get("ttl", FIXTURE_CACHE_TTL_SECONDS):
+    fresh = (_cache["data"] is not None
+             and (now - _cache["ts"]) < _cache.get("ttl", FIXTURE_CACHE_TTL_SECONDS))
+    if not force_refresh and fresh:
+        return _cache["data"]
+
+    # Stale-while-revalidate. Rebuilding this board means refetching every
+    # competition and pricing every fixture on it, which was measured at 53
+    # SECONDS against production — and whoever happened to arrive just after
+    # the twenty-minute cache expired paid all of it, staring at a spinner.
+    # An expired board is a board that was correct twenty minutes ago; for a
+    # fixture list that is a far better answer than a minute of nothing, so
+    # it goes out immediately and the rebuild happens behind it.
+    if _cache["data"] is not None and not force_refresh:
+        _start_background_rebuild()
         return _cache["data"]
 
     result: dict = {"soccer": {}, "afl": {"league": "AFL", "fixtures": []},

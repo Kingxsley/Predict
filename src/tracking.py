@@ -349,10 +349,43 @@ def _mae(subset: list[dict], pred_key: str, actual_key: str) -> float | None:
     return round(sum(abs(p - a) for p, a in pairs) / len(pairs), 2)
 
 
+def grade_in_background() -> dict:
+    """Starts a sweep behind the response instead of inside it.
+
+    Grading makes live calls to football-data.org, Squiggle and TheSportsDB.
+    Running that inline meant a visitor whose request happened to land after
+    the throttle expired waited for all of them: measured at 5.6s against
+    production versus 1.6s for a throttled request. The reader gains nothing
+    by waiting — results land in the log either way, and the page they were
+    served is already correct as of the previous sweep.
+    """
+    global _last_grade_at
+    import time as _time
+
+    now = _time.monotonic()
+    if (now - _last_grade_at) < GRADE_INTERVAL_SECONDS:
+        return {"ran": False, "reason": "throttled"}
+    # Claim the slot up front so a burst of requests starts one sweep, not one
+    # each; grade_pending re-checks under its own lock.
+    _last_grade_at = now
+
+    def run():
+        try:
+            report = grade_pending(force=True)
+            if report.get("graded"):
+                print(f"[tracking] graded {report['graded']} entries")
+        except Exception as e:
+            print(f"[tracking] background sweep failed: {type(e).__name__}: {e}")
+
+    threading.Thread(target=run, name="grade-sweep", daemon=True).start()
+    return {"ran": True, "mode": "background",
+            "note": "Grading runs behind this response; results appear on the next load."}
+
+
 def get_log(grade: bool = True) -> dict:
-    """Returns the full log plus per-market accuracy. Runs a (throttled,
-    non-blocking) grading sweep first unless told not to."""
-    report = grade_pending() if grade else {"ran": False, "reason": "skipped"}
+    """Returns the full log plus per-market accuracy. Kicks off a throttled
+    grading sweep in the background first unless told not to."""
+    report = grade_in_background() if grade else {"ran": False, "reason": "skipped"}
     entries = _load()
     entries.sort(key=lambda e: e.get("date") or "", reverse=True)
 
